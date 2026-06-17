@@ -49,6 +49,9 @@ import {
 	MiPasswordResetRequest,
 	MiPoll,
 	MiPollVote,
+	MiSpamLog,
+	MiCsamDenylist,
+	MiCsamQuarantine,
 	MiPromoNote,
 	MiPromoRead,
 	MiRegistrationTicket,
@@ -179,6 +182,24 @@ const $pollsRepository: Provider = {
 const $pollVotesRepository: Provider = {
 	provide: DI.pollVotesRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiPollVote).extend(miRepository as MiRepository<MiPollVote>),
+	inject: [DI.db],
+};
+
+const $spamLogsRepository: Provider = {
+	provide: DI.spamLogsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiSpamLog).extend(miRepository as MiRepository<MiSpamLog>),
+	inject: [DI.db],
+};
+
+const $csamDenylistRepository: Provider = {
+	provide: DI.csamDenylistRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiCsamDenylist).extend(miRepository as MiRepository<MiCsamDenylist>),
+	inject: [DI.db],
+};
+
+const $csamQuarantineRepository: Provider = {
+	provide: DI.csamQuarantineRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiCsamQuarantine).extend(miRepository as MiRepository<MiCsamQuarantine>),
 	inject: [DI.db],
 };
 
@@ -590,6 +611,9 @@ const $noteScheduleRepository: Provider = {
 		$noteReactionsRepository,
 		$pollsRepository,
 		$pollVotesRepository,
+		$spamLogsRepository,
+		$csamDenylistRepository,
+		$csamQuarantineRepository,
 		$userProfilesRepository,
 		$userKeypairsRepository,
 		$userPendingsRepository,
@@ -672,6 +696,9 @@ const $noteScheduleRepository: Provider = {
 		$noteReactionsRepository,
 		$pollsRepository,
 		$pollVotesRepository,
+		$spamLogsRepository,
+		$csamDenylistRepository,
+		$csamQuarantineRepository,
 		$userProfilesRepository,
 		$userKeypairsRepository,
 		$userPendingsRepository,

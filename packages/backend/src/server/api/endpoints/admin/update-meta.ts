@@ -151,6 +151,31 @@ export const paramDef = {
 		enableChartsForFederatedInstances: { type: 'boolean' },
 		enableStatsForFederatedInstances: { type: 'boolean' },
 		enableServerMachineStats: { type: 'boolean' },
+
+		// spam filter
+		enableSpamFilter: { type: 'boolean' },
+		spamFilterServerUrl: { type: 'string', nullable: true },
+		spamFilterApiKey: { type: 'string', nullable: true },
+		spamFilterModel: { type: 'string' },
+		spamFilterThresholdSpam: { type: 'number' },
+		spamFilterThresholdAd: { type: 'number' },
+		spamFilterThresholdPhishing: { type: 'number' },
+		spamAccountMaxAgeDays: { type: 'integer' },
+		spamWindowDays: { type: 'integer' },
+		spamCountThreshold: { type: 'integer' },
+		spamFilterModeratorUserId: { type: 'string', nullable: true },
+		spamMaxImagesPerNote: { type: 'integer' },
+		spamRequestTimeoutMs: { type: 'integer' },
+		spamFilterSkipHosts: { type: 'array', items: { type: 'string' } },
+
+		// csam filter
+		enableCsamFilter: { type: 'boolean' },
+		csamAutoSuspendOnConfirm: { type: 'boolean' },
+
+		// moderation digest email
+		moderationReportEmail: { type: 'string', nullable: true },
+		moderationReportEmailSkipIfEmpty: { type: 'boolean' },
+
 		enableAchievements: { type: 'boolean' },
 		robotsTxt: { type: 'string', nullable: true },
 		enableIdenticonGeneration: { type: 'boolean' },
@@ -660,6 +685,30 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.enableServerMachineStats !== undefined) {
 				set.enableServerMachineStats = ps.enableServerMachineStats;
 			}
+
+			// #region spam filter
+			if (ps.enableSpamFilter !== undefined) set.enableSpamFilter = ps.enableSpamFilter;
+			if (ps.spamFilterServerUrl !== undefined) set.spamFilterServerUrl = ps.spamFilterServerUrl;
+			if (ps.spamFilterApiKey !== undefined) set.spamFilterApiKey = ps.spamFilterApiKey;
+			if (ps.spamFilterModel !== undefined) set.spamFilterModel = ps.spamFilterModel;
+			if (ps.spamFilterThresholdSpam !== undefined) set.spamFilterThresholdSpam = ps.spamFilterThresholdSpam;
+			if (ps.spamFilterThresholdAd !== undefined) set.spamFilterThresholdAd = ps.spamFilterThresholdAd;
+			if (ps.spamFilterThresholdPhishing !== undefined) set.spamFilterThresholdPhishing = ps.spamFilterThresholdPhishing;
+			if (ps.spamAccountMaxAgeDays !== undefined) set.spamAccountMaxAgeDays = ps.spamAccountMaxAgeDays;
+			if (ps.spamWindowDays !== undefined) set.spamWindowDays = ps.spamWindowDays;
+			if (ps.spamCountThreshold !== undefined) set.spamCountThreshold = ps.spamCountThreshold;
+			if (ps.spamFilterModeratorUserId !== undefined) set.spamFilterModeratorUserId = ps.spamFilterModeratorUserId;
+			if (ps.spamMaxImagesPerNote !== undefined) set.spamMaxImagesPerNote = ps.spamMaxImagesPerNote;
+			if (ps.spamRequestTimeoutMs !== undefined) set.spamRequestTimeoutMs = ps.spamRequestTimeoutMs;
+			if (ps.spamFilterSkipHosts !== undefined) set.spamFilterSkipHosts = ps.spamFilterSkipHosts;
+			// #endregion
+
+			// #region csam filter + digest email
+			if (ps.enableCsamFilter !== undefined) set.enableCsamFilter = ps.enableCsamFilter;
+			if (ps.csamAutoSuspendOnConfirm !== undefined) set.csamAutoSuspendOnConfirm = ps.csamAutoSuspendOnConfirm;
+			if (ps.moderationReportEmail !== undefined) set.moderationReportEmail = ps.moderationReportEmail;
+			if (ps.moderationReportEmailSkipIfEmpty !== undefined) set.moderationReportEmailSkipIfEmpty = ps.moderationReportEmailSkipIfEmpty;
+			// #endregion
 
 			if (ps.enableAchievements !== undefined) {
 				set.enableAchievements = ps.enableAchievements;

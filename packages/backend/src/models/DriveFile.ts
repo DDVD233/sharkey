@@ -162,6 +162,12 @@ export class MiDriveFile {
 	})
 	public maybeSensitive: boolean;
 
+	@Column('boolean', {
+		default: false,
+		comment: 'Whether the DriveFile is quarantined by the CSAM filter (de-served pending moderator review).',
+	})
+	public isQuarantined: boolean;
+
 	@Index()
 	@Column('boolean', {
 		default: false,

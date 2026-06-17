@@ -17,6 +17,11 @@ export * as 'admin/abuse-report/notification-recipient/show' from './endpoints/a
 export * as 'admin/abuse-report/notification-recipient/update' from './endpoints/admin/abuse-report/notification-recipient/update.js';
 export * as 'admin/abuse-user-reports' from './endpoints/admin/abuse-user-reports.js';
 export * as 'admin/accounts/create' from './endpoints/admin/accounts/create.js';
+export * as 'admin/csam/add-denylist' from './endpoints/admin/csam/add-denylist.js';
+export * as 'admin/csam/delete-denylist' from './endpoints/admin/csam/delete-denylist.js';
+export * as 'admin/csam/list-denylist' from './endpoints/admin/csam/list-denylist.js';
+export * as 'admin/csam/list-quarantine' from './endpoints/admin/csam/list-quarantine.js';
+export * as 'admin/csam/resolve-quarantine' from './endpoints/admin/csam/resolve-quarantine.js';
 export * as 'admin/accounts/delete' from './endpoints/admin/accounts/delete.js';
 export * as 'admin/accounts/find-by-email' from './endpoints/admin/accounts/find-by-email.js';
 export * as 'admin/ad/create' from './endpoints/admin/ad/create.js';

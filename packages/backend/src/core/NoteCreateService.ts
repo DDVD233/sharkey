@@ -18,6 +18,7 @@ import type { MiDriveFile } from '@/models/DriveFile.js';
 import type { MiApp } from '@/models/App.js';
 import { concat } from '@/misc/prelude/array.js';
 import { IdService } from '@/core/IdService.js';
+import { isSystemAccount } from '@/misc/is-system-account.js';
 import type { MiUser, MiLocalUser, MiRemoteUser } from '@/models/User.js';
 import type { IPoll } from '@/models/Poll.js';
 import { MiPoll } from '@/models/Poll.js';
@@ -427,6 +428,17 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		const note = await this.insertNote(user, data, tags, emojis, mentionedUsers);
+
+		// Real-time ML spam scan (event-driven, fire-and-forget). Covers local + remote notes.
+		// Account age is derived from the snowflake ID; for remote users this is first-seen date.
+		if (this.meta.enableSpamFilter && this.meta.spamFilterServerUrl
+			&& !isSystemAccount(user)
+			&& user.id !== this.meta.spamFilterModeratorUserId
+			&& !(user.host != null && this.meta.spamFilterSkipHosts.includes(user.host))
+			&& (Date.now() - this.idService.parse(user.id).date.getTime()) < this.meta.spamAccountMaxAgeDays * 86400_000
+		) {
+			this.queueService.createSpamCheckJob(note.id).catch(() => { /* ignore enqueue errors */ });
+		}
 
 		setImmediate('post created', { signal: this.#shutdownController.signal }).then(
 			() => this.postNoteCreated(note, user, data, silent, tags!, mentionedUsers!),

@@ -162,3 +162,11 @@ export type ThinUser = {
 export type ScheduleNotePostJobData = {
 	scheduleNoteId: MiNote['id'];
 };
+
+export type SpamCheckJobData = {
+	noteId: MiNote['id'];
+};
+
+export type CsamCheckJobData = {
+	fileId: MiDriveFile['id'];
+};

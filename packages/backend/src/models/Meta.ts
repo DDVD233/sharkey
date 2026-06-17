@@ -770,4 +770,111 @@ export class MiMeta {
 		default: false,
 	})
 	public enableProxyAccount: boolean;
+
+	//#region ML spam filter
+	@Column('boolean', {
+		default: false,
+	})
+	public enableSpamFilter: boolean;
+
+	/** Base URL of the external spam classifier (the service appends /classify). */
+	@Column('varchar', {
+		length: 1024, nullable: true,
+	})
+	public spamFilterServerUrl: string | null;
+
+	/** Bearer token for the spam classifier. Write-only in the API. */
+	@Column('varchar', {
+		length: 1024, nullable: true,
+	})
+	public spamFilterApiKey: string | null;
+
+	@Column('varchar', {
+		length: 256, default: 'Qwen/Qwen2.5-VL-7B-Instruct',
+	})
+	public spamFilterModel: string;
+
+	@Column('double precision', {
+		default: 0.85,
+	})
+	public spamFilterThresholdSpam: number;
+
+	@Column('double precision', {
+		default: 0.85,
+	})
+	public spamFilterThresholdAd: number;
+
+	@Column('double precision', {
+		default: 0.80,
+	})
+	public spamFilterThresholdPhishing: number;
+
+	/** Only scan accounts younger than this many days (older accounts assumed good). */
+	@Column('integer', {
+		default: 365,
+	})
+	public spamAccountMaxAgeDays: number;
+
+	/** Rolling window (days) over which spam strikes are counted for auto-suspension. */
+	@Column('integer', {
+		default: 30,
+	})
+	public spamWindowDays: number;
+
+	/** Number of spam strikes within the window that triggers auto-suspension. */
+	@Column('integer', {
+		default: 5,
+	})
+	public spamCountThreshold: number;
+
+	/** Local moderator account (@dvd) used to DM flagged users and as the suspending moderator. */
+	@Column({
+		...id(),
+		nullable: true,
+	})
+	public spamFilterModeratorUserId: MiUser['id'] | null;
+
+	@Column('integer', {
+		default: 4,
+	})
+	public spamMaxImagesPerNote: number;
+
+	@Column('integer', {
+		default: 15000,
+	})
+	public spamRequestTimeoutMs: number;
+
+	/** Hosts to skip entirely (large, well-moderated servers); their posts are never scanned. */
+	@Column('varchar', {
+		array: true, default: '{}',
+	})
+	public spamFilterSkipHosts: string[];
+	//#endregion
+
+	//#region CSAM filter
+	@Column('boolean', {
+		default: false,
+	})
+	public enableCsamFilter: boolean;
+
+	/** Whether confirming a quarantine record should auto-suspend the uploader. */
+	@Column('boolean', {
+		default: true,
+	})
+	public csamAutoSuspendOnConfirm: boolean;
+	//#endregion
+
+	//#region moderation digest emails
+	/** Recipient for the daily spam/CSAM digest emails. */
+	@Column('varchar', {
+		length: 1024, nullable: true,
+	})
+	public moderationReportEmail: string | null;
+
+	/** Skip sending a digest email on days with zero operations. */
+	@Column('boolean', {
+		default: true,
+	})
+	public moderationReportEmailSkipIfEmpty: boolean;
+	//#endregion
 }

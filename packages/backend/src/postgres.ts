@@ -50,6 +50,9 @@ import { MiPageLike } from '@/models/PageLike.js';
 import { MiPasswordResetRequest } from '@/models/PasswordResetRequest.js';
 import { MiPoll } from '@/models/Poll.js';
 import { MiPollVote } from '@/models/PollVote.js';
+import { MiSpamLog } from '@/models/SpamLog.js';
+import { MiCsamDenylist } from '@/models/CsamDenylist.js';
+import { MiCsamQuarantine } from '@/models/CsamQuarantine.js';
 import { MiPromoNote } from '@/models/PromoNote.js';
 import { MiPromoRead } from '@/models/PromoRead.js';
 import { MiRegistrationTicket } from '@/models/RegistrationTicket.js';
@@ -249,6 +252,9 @@ export const entities = [
 	MiDriveFolder,
 	MiPoll,
 	MiPollVote,
+	MiSpamLog,
+	MiCsamDenylist,
+	MiCsamQuarantine,
 	MiEmoji,
 	MiHashtag,
 	MiSwSubscription,

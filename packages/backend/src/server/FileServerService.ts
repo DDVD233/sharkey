@@ -159,6 +159,14 @@ export class FileServerService {
 			return;
 		}
 
+		// De-serve files quarantined by the CSAM filter (held pending moderator review).
+		if (file.file.isQuarantined) {
+			if ('cleanup' in file) file.cleanup();
+			reply.code(451);
+			reply.header('Cache-Control', 'no-store');
+			return reply.sendFile('/dummy.png', assets);
+		}
+
 		try {
 			if (file.state === 'remote') {
 				let image: IImageStreamable | null = null;
@@ -373,6 +381,14 @@ export class FileServerService {
 			reply.code(204);
 			reply.header('Cache-Control', 'max-age=86400');
 			return;
+		}
+
+		// De-serve files quarantined by the CSAM filter (held pending moderator review).
+		if (file.file?.isQuarantined) {
+			if ('cleanup' in file) file.cleanup();
+			reply.code(451);
+			reply.header('Cache-Control', 'no-store');
+			return reply.sendFile('/dummy.png', assets);
 		}
 
 		try {

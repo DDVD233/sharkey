@@ -39,7 +39,7 @@ export class EmailService {
 	}
 
 	@bindThis
-	public async sendEmail(to: string, subject: string, html: string, text: string) {
+	public async sendEmail(to: string, subject: string, html: string, text: string, attachments?: { filename: string; content: string | Buffer; contentType?: string; }[]) {
 		if (!this.meta.enableEmail) return;
 
 		const iconUrl = `${this.config.url}/static-assets/mi-white.png`;
@@ -150,6 +150,7 @@ export class EmailService {
 				subject: subject,
 				text: text,
 				html: inlinedHtml,
+				attachments: attachments,
 			});
 
 			this.logger.info(`Message sent: ${info.messageId}`);

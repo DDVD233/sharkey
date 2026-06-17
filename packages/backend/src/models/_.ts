@@ -64,6 +64,9 @@ import { MiPageLike } from '@/models/PageLike.js';
 import { MiPasswordResetRequest } from '@/models/PasswordResetRequest.js';
 import { MiPoll } from '@/models/Poll.js';
 import { MiPollVote } from '@/models/PollVote.js';
+import { MiSpamLog } from '@/models/SpamLog.js';
+import { MiCsamDenylist } from '@/models/CsamDenylist.js';
+import { MiCsamQuarantine } from '@/models/CsamQuarantine.js';
 import { MiPromoNote } from '@/models/PromoNote.js';
 import { MiPromoRead } from '@/models/PromoRead.js';
 import { MiRegistrationTicket } from '@/models/RegistrationTicket.js';
@@ -207,6 +210,9 @@ export {
 	MiPasswordResetRequest,
 	MiPoll,
 	MiPollVote,
+	MiSpamLog,
+	MiCsamDenylist,
+	MiCsamQuarantine,
 	MiPromoNote,
 	MiPromoRead,
 	MiRegistrationTicket,
@@ -290,6 +296,9 @@ export type PageLikesRepository = Repository<MiPageLike> & MiRepository<MiPageLi
 export type PasswordResetRequestsRepository = Repository<MiPasswordResetRequest> & MiRepository<MiPasswordResetRequest>;
 export type PollsRepository = Repository<MiPoll> & MiRepository<MiPoll>;
 export type PollVotesRepository = Repository<MiPollVote> & MiRepository<MiPollVote>;
+export type SpamLogsRepository = Repository<MiSpamLog> & MiRepository<MiSpamLog>;
+export type CsamDenylistRepository = Repository<MiCsamDenylist> & MiRepository<MiCsamDenylist>;
+export type CsamQuarantineRepository = Repository<MiCsamQuarantine> & MiRepository<MiCsamQuarantine>;
 export type PromoNotesRepository = Repository<MiPromoNote> & MiRepository<MiPromoNote>;
 export type PromoReadsRepository = Repository<MiPromoRead> & MiRepository<MiPromoRead>;
 export type RegistrationTicketsRepository = Repository<MiRegistrationTicket> & MiRepository<MiRegistrationTicket>;

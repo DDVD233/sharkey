@@ -11,6 +11,7 @@ import { DI } from '@/di-symbols.js';
 import type Logger from '@/logger.js';
 import { bindThis } from '@/decorators.js';
 import { CheckModeratorsActivityProcessorService } from '@/queue/processors/CheckModeratorsActivityProcessorService.js';
+import { ModerationReportService } from '@/core/ModerationReportService.js';
 import { renderFullError } from '@/misc/render-full-error.js';
 import { UserWebhookDeliverProcessorService } from './processors/UserWebhookDeliverProcessorService.js';
 import { SystemWebhookDeliverProcessorService } from './processors/SystemWebhookDeliverProcessorService.js';
@@ -46,6 +47,8 @@ import { BakeBufferedReactionsProcessorService } from './processors/BakeBuffered
 import { CleanProcessorService } from './processors/CleanProcessorService.js';
 import { AggregateRetentionProcessorService } from './processors/AggregateRetentionProcessorService.js';
 import { ScheduleNotePostProcessorService } from './processors/ScheduleNotePostProcessorService.js';
+import { SpamCheckProcessorService } from './processors/SpamCheckProcessorService.js';
+import { CsamCheckProcessorService } from './processors/CsamCheckProcessorService.js';
 import { QueueLoggerService } from './QueueLoggerService.js';
 import { QUEUE, baseWorkerOptions } from './const.js';
 import { ImportNotesProcessorService } from './processors/ImportNotesProcessorService.js';
@@ -91,6 +94,8 @@ export class QueueProcessorService implements OnApplicationShutdown {
 	private objectStorageQueueWorker: Bull.Worker;
 	private endedPollNotificationQueueWorker: Bull.Worker;
 	private schedulerNotePostQueueWorker: Bull.Worker;
+	private spamCheckQueueWorker: Bull.Worker;
+	private csamCheckQueueWorker: Bull.Worker;
 
 	constructor(
 		@Inject(DI.config)
@@ -133,6 +138,9 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		private checkModeratorsActivityProcessorService: CheckModeratorsActivityProcessorService,
 		private cleanProcessorService: CleanProcessorService,
 		private scheduleNotePostProcessorService: ScheduleNotePostProcessorService,
+		private spamCheckProcessorService: SpamCheckProcessorService,
+		private csamCheckProcessorService: CsamCheckProcessorService,
+		private moderationReportService: ModerationReportService,
 	) {
 		this.logger = this.queueLoggerService.logger;
 
@@ -148,6 +156,8 @@ export class QueueProcessorService implements OnApplicationShutdown {
 					case 'bakeBufferedReactions': return this.bakeBufferedReactionsProcessorService.process();
 					case 'checkModeratorsActivity': return this.checkModeratorsActivityProcessorService.process();
 					case 'clean': return this.cleanProcessorService.process();
+					case 'spamReportEmail': return this.moderationReportService.sendSpamDigest();
+					case 'csamReportEmail': return this.moderationReportService.sendCsamDigest();
 					default: throw new Error(`unrecognized job type ${job.name} for system`);
 				}
 			};
@@ -550,6 +560,70 @@ export class QueueProcessorService implements OnApplicationShutdown {
 				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
 		}
 		//#endregion
+
+		//#region spam check
+		{
+			const logger = this.logger.createSubLogger('spamCheck');
+
+			this.spamCheckQueueWorker = new Bull.Worker(QUEUE.SPAM_CHECK, (job) => {
+				if (this.config.sentryForBackend) {
+					return Sentry.startSpan({ name: 'Queue: SpamCheck' }, () => this.spamCheckProcessorService.process(job));
+				} else {
+					return this.spamCheckProcessorService.process(job);
+				}
+			}, {
+				...baseWorkerOptions(this.config, QUEUE.SPAM_CHECK),
+				autorun: false,
+				concurrency: 32,
+			});
+			this.spamCheckQueueWorker
+				.on('active', (job) => logger.debug(`active id=${job.id}`))
+				.on('completed', (job, result) => logger.debug(`completed(${result}) id=${job.id}`))
+				.on('failed', (job, err) => {
+					this.logError(logger, err, job);
+					if (config.sentryForBackend) {
+						Sentry.captureMessage(`Queue: SpamCheck: ${job?.name ?? '?'}: ${err.name}: ${err.message}`, {
+							level: 'error',
+							extra: { job, err },
+						});
+					}
+				})
+				.on('error', (err: Error) => this.logError(logger, err))
+				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
+		}
+		//#endregion
+
+		//#region csam check
+		{
+			const logger = this.logger.createSubLogger('csamCheck');
+
+			this.csamCheckQueueWorker = new Bull.Worker(QUEUE.CSAM_CHECK, (job) => {
+				if (this.config.sentryForBackend) {
+					return Sentry.startSpan({ name: 'Queue: CsamCheck' }, () => this.csamCheckProcessorService.process(job));
+				} else {
+					return this.csamCheckProcessorService.process(job);
+				}
+			}, {
+				...baseWorkerOptions(this.config, QUEUE.CSAM_CHECK),
+				autorun: false,
+				concurrency: 4,
+			});
+			this.csamCheckQueueWorker
+				.on('active', (job) => logger.debug(`active id=${job.id}`))
+				.on('completed', (job, result) => logger.debug(`completed(${result}) id=${job.id}`))
+				.on('failed', (job, err) => {
+					this.logError(logger, err, job);
+					if (config.sentryForBackend) {
+						Sentry.captureMessage(`Queue: CsamCheck: ${job?.name ?? '?'}: ${err.name}: ${err.message}`, {
+							level: 'error',
+							extra: { job, err },
+						});
+					}
+				})
+				.on('error', (err: Error) => this.logError(logger, err))
+				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
+		}
+		//#endregion
 	}
 
 	private logError(logger: Logger, err: unknown, job?: Bull.Job | null): void {
@@ -591,6 +665,8 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			this.objectStorageQueueWorker.run(),
 			this.endedPollNotificationQueueWorker.run(),
 			this.schedulerNotePostQueueWorker.run(),
+			this.spamCheckQueueWorker.run(),
+			this.csamCheckQueueWorker.run(),
 		]);
 	}
 
@@ -607,6 +683,8 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			this.objectStorageQueueWorker.close(),
 			this.endedPollNotificationQueueWorker.close(),
 			this.schedulerNotePostQueueWorker.close(),
+			this.spamCheckQueueWorker.close(),
+			this.csamCheckQueueWorker.close(),
 		]);
 	}
 

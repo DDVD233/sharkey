@@ -37,6 +37,8 @@ import type {
 	SystemWebhookDeliverQueue,
 	UserWebhookDeliverQueue,
 	ScheduleNotePostQueue,
+	SpamCheckQueue,
+	CsamCheckQueue,
 } from './QueueModule.js';
 import type httpSignature from '@peertube/http-signature';
 import type * as Bull from 'bullmq';
@@ -53,6 +55,8 @@ export const QUEUE_TYPES = [
 	'userWebhookDeliver',
 	'systemWebhookDeliver',
 	'scheduleNotePost',
+	'spamCheck',
+	'csamCheck',
 ] as const;
 
 @Injectable()
@@ -71,6 +75,8 @@ export class QueueService {
 		@Inject('queue:userWebhookDeliver') public userWebhookDeliverQueue: UserWebhookDeliverQueue,
 		@Inject('queue:systemWebhookDeliver') public systemWebhookDeliverQueue: SystemWebhookDeliverQueue,
 		@Inject('queue:scheduleNotePost') public ScheduleNotePostQueue: ScheduleNotePostQueue,
+		@Inject('queue:spamCheck') public spamCheckQueue: SpamCheckQueue,
+		@Inject('queue:csamCheck') public csamCheckQueue: CsamCheckQueue,
 	) {
 		this.systemQueue.add('tickCharts', {
 		}, {
@@ -127,6 +133,44 @@ export class QueueService {
 			repeat: { pattern: '30 * * * *' },
 			removeOnComplete: 10,
 			removeOnFail: 30,
+		});
+
+		this.systemQueue.add('spamReportEmail', {
+		}, {
+			// daily at 09:00
+			repeat: { pattern: '0 9 * * *' },
+			removeOnComplete: 10,
+			removeOnFail: 30,
+		});
+
+		this.systemQueue.add('csamReportEmail', {
+		}, {
+			// daily at 09:00
+			repeat: { pattern: '0 9 * * *' },
+			removeOnComplete: 10,
+			removeOnFail: 30,
+		});
+	}
+
+	@bindThis
+	public createSpamCheckJob(noteId: MiNote['id']) {
+		return this.spamCheckQueue.add('check', { noteId }, {
+			jobId: `spam:${noteId}`,
+			removeOnComplete: true,
+			removeOnFail: 100,
+			attempts: 2,
+			backoff: { type: 'exponential', delay: 10000 },
+		});
+	}
+
+	@bindThis
+	public createCsamCheckJob(fileId: MiDriveFile['id']) {
+		return this.csamCheckQueue.add('check', { fileId }, {
+			jobId: `csam:${fileId}`,
+			removeOnComplete: true,
+			removeOnFail: 100,
+			attempts: 3,
+			backoff: { type: 'exponential', delay: 30000 },
 		});
 	}
 

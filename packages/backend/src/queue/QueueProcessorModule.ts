@@ -44,6 +44,8 @@ import { AggregateRetentionProcessorService } from './processors/AggregateRetent
 import { ExportFavoritesProcessorService } from './processors/ExportFavoritesProcessorService.js';
 import { RelationshipProcessorService } from './processors/RelationshipProcessorService.js';
 import { ScheduleNotePostProcessorService } from './processors/ScheduleNotePostProcessorService.js';
+import { SpamCheckProcessorService } from './processors/SpamCheckProcessorService.js';
+import { CsamCheckProcessorService } from './processors/CsamCheckProcessorService.js';
 
 @Module({
 	imports: [
@@ -90,6 +92,8 @@ import { ScheduleNotePostProcessorService } from './processors/ScheduleNotePostP
 		CheckModeratorsActivityProcessorService,
 		QueueProcessorService,
 		ScheduleNotePostProcessorService,
+		SpamCheckProcessorService,
+		CsamCheckProcessorService,
 	],
 	exports: [
 		QueueProcessorService,

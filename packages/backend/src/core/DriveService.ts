@@ -678,6 +678,12 @@ export class DriveService {
 			}
 		}
 
+		// CSAM scan (async, after upload) — images only, local + remote-cached
+		if (this.meta.enableCsamFilter && !file.isLink && file.type.startsWith('image/')) {
+			this.queueService.createCsamCheckJob(file.id)
+				.catch(err => this.registerLogger.error('failed to enqueue CSAM check', err as Error));
+		}
+
 		return file;
 	}
 

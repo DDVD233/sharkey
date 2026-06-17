@@ -17,6 +17,8 @@ import {
 	UserWebhookDeliverJobData,
 	SystemWebhookDeliverJobData,
 	ScheduleNotePostJobData,
+	SpamCheckJobData,
+	CsamCheckJobData,
 } from '../queue/types.js';
 import type { Provider } from '@nestjs/common';
 
@@ -30,6 +32,8 @@ export type ObjectStorageQueue = Bull.Queue;
 export type UserWebhookDeliverQueue = Bull.Queue<UserWebhookDeliverJobData>;
 export type SystemWebhookDeliverQueue = Bull.Queue<SystemWebhookDeliverJobData>;
 export type ScheduleNotePostQueue = Bull.Queue<ScheduleNotePostJobData>;
+export type SpamCheckQueue = Bull.Queue<SpamCheckJobData>;
+export type CsamCheckQueue = Bull.Queue<CsamCheckJobData>;
 
 const $system: Provider = {
 	provide: 'queue:system',
@@ -91,6 +95,18 @@ const $scheduleNotePost: Provider = {
 	inject: [DI.config],
 };
 
+const $spamCheck: Provider = {
+	provide: 'queue:spamCheck',
+	useFactory: (config: Config) => new Bull.Queue(QUEUE.SPAM_CHECK, baseQueueOptions(config, QUEUE.SPAM_CHECK)),
+	inject: [DI.config],
+};
+
+const $csamCheck: Provider = {
+	provide: 'queue:csamCheck',
+	useFactory: (config: Config) => new Bull.Queue(QUEUE.CSAM_CHECK, baseQueueOptions(config, QUEUE.CSAM_CHECK)),
+	inject: [DI.config],
+};
+
 @Module({
 	imports: [
 	],
@@ -105,6 +121,8 @@ const $scheduleNotePost: Provider = {
 		$userWebhookDeliver,
 		$systemWebhookDeliver,
 		$scheduleNotePost,
+		$spamCheck,
+		$csamCheck,
 	],
 	exports: [
 		$system,
@@ -117,6 +135,8 @@ const $scheduleNotePost: Provider = {
 		$userWebhookDeliver,
 		$systemWebhookDeliver,
 		$scheduleNotePost,
+		$spamCheck,
+		$csamCheck,
 	],
 })
 export class QueueModule implements OnApplicationShutdown {
@@ -131,6 +151,8 @@ export class QueueModule implements OnApplicationShutdown {
 		@Inject('queue:userWebhookDeliver') public userWebhookDeliverQueue: UserWebhookDeliverQueue,
 		@Inject('queue:systemWebhookDeliver') public systemWebhookDeliverQueue: SystemWebhookDeliverQueue,
 		@Inject('queue:scheduleNotePost') public scheduleNotePostQueue: ScheduleNotePostQueue,
+		@Inject('queue:spamCheck') public spamCheckQueue: SpamCheckQueue,
+		@Inject('queue:csamCheck') public csamCheckQueue: CsamCheckQueue,
 	) {}
 
 	public async dispose(): Promise<void> {
@@ -148,6 +170,8 @@ export class QueueModule implements OnApplicationShutdown {
 			this.userWebhookDeliverQueue.close(),
 			this.systemWebhookDeliverQueue.close(),
 			this.scheduleNotePostQueue.close(),
+			this.spamCheckQueue.close(),
+			this.csamCheckQueue.close(),
 		]);
 	}
 

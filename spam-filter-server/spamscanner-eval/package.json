@@ -1,0 +1,10 @@
+{
+  "name": "spamscanner-eval",
+  "private": true,
+  "type": "module",
+  "description": "Benchmark spamscanner against the VLM classifier on the same note sample",
+  "dependencies": {
+    "spamscanner": "^6.0.10",
+    "js-yaml": "^4.1.0"
+  }
+}
