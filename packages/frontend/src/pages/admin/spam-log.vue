@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template v-else>
 				<div v-for="item in items" :key="item.id" class="_panel" :class="$style.item">
 					<div :class="$style.itemHeader">
-						<span :class="[$style.label, $style['label_' + item.label]]">{{ item.label }} {{ item.score.toFixed(2) }}</span>
+						<span :class="[$style.label, (item.label === 'spam' || item.label === 'phishing') ? $style.labelBad : '']">{{ item.label }} {{ item.score.toFixed(2) }}</span>
 						<span :class="$style.handle">@{{ item.username }}{{ item.userHost ? '@' + item.userHost : '' }}</span>
 						<span :class="$style.date"><MkTime :time="item.createdAt"/></span>
 						<span v-if="item.visibility && item.visibility !== 'public'" :class="$style.vis">now: {{ item.visibility }}</span>
@@ -156,7 +156,7 @@ definePage(() => ({
 	background: var(--MI_THEME-accentedBg);
 	color: var(--MI_THEME-accent);
 }
-.label_phishing, .label_spam {
+.labelBad {
 	background: rgba(255, 0, 0, 0.1);
 	color: #d40000;
 }
