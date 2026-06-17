@@ -85,11 +85,13 @@ export class SpamFilterService implements OnApplicationShutdown {
 	}
 
 	/**
-	 * Whether a user is in scope for spam scanning: young accounts, OR older accounts that
-	 * were dormant for a while before now (dormant-then-active accounts are often stolen).
+	 * Whether a user is in scope for spam scanning. Remote users are always scanned (subject to
+	 * the host whitelist). The age gate applies to LOCAL users only: young accounts, OR older
+	 * accounts that were dormant for a while (dormant-then-active accounts are often stolen).
 	 */
 	@bindThis
-	public isAccountInScope(user: { id: string; lastActiveDate: Date | null }): boolean {
+	public isAccountInScope(user: { id: string; host: string | null; lastActiveDate: Date | null }): boolean {
+		if (user.host != null) return true; // remote: scan everything
 		const ageMs = Date.now() - this.idService.parse(user.id).date.getTime();
 		if (ageMs < this.meta.spamAccountMaxAgeDays * DAY_MS) return true;
 		if (this.meta.spamInactiveDays > 0 && user.lastActiveDate != null

@@ -430,15 +430,16 @@ export class NoteCreateService implements OnApplicationShutdown {
 		const note = await this.insertNote(user, data, tags, emojis, mentionedUsers);
 
 		// Real-time ML spam scan (event-driven, fire-and-forget). Covers local + remote notes.
-		// In scope: young accounts (age from snowflake ID), OR old-but-dormant accounts
-		// (lastActiveDate here is the pre-request value, so a reactivated/stolen account is caught).
+		// Remote users are always in scope; the age gate applies to local users only (young
+		// accounts, or old-but-dormant ones — lastActiveDate here is the pre-request value, so a
+		// reactivated/stolen account is caught).
 		if (this.meta.enableSpamFilter && this.meta.spamFilterServerUrl
 			&& !isSystemAccount(user)
 			&& user.id !== this.meta.spamFilterModeratorUserId
 			&& !(user.host != null && this.meta.spamFilterSkipHosts.includes(user.host))
 		) {
-			const ageMs = Date.now() - this.idService.parse(user.id).date.getTime();
-			const inScope = ageMs < this.meta.spamAccountMaxAgeDays * 86400_000
+			const inScope = user.host != null
+				|| (Date.now() - this.idService.parse(user.id).date.getTime()) < this.meta.spamAccountMaxAgeDays * 86400_000
 				|| (this.meta.spamInactiveDays > 0 && user.lastActiveDate != null
 					&& (Date.now() - user.lastActiveDate.getTime()) >= this.meta.spamInactiveDays * 86400_000);
 			if (inScope) {
