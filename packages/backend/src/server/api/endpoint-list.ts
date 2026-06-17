@@ -22,6 +22,8 @@ export * as 'admin/csam/delete-denylist' from './endpoints/admin/csam/delete-den
 export * as 'admin/csam/list-denylist' from './endpoints/admin/csam/list-denylist.js';
 export * as 'admin/csam/list-quarantine' from './endpoints/admin/csam/list-quarantine.js';
 export * as 'admin/csam/resolve-quarantine' from './endpoints/admin/csam/resolve-quarantine.js';
+export * as 'admin/spam-log/list' from './endpoints/admin/spam-log/list.js';
+export * as 'admin/spam-log/restore' from './endpoints/admin/spam-log/restore.js';
 export * as 'admin/accounts/delete' from './endpoints/admin/accounts/delete.js';
 export * as 'admin/accounts/find-by-email' from './endpoints/admin/accounts/find-by-email.js';
 export * as 'admin/ad/create' from './endpoints/admin/ad/create.js';

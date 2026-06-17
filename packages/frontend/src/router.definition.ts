@@ -460,6 +460,10 @@ export const ROUTE_DEF = [{
 		name: 'modlog',
 		component: page(() => import('@/pages/admin/modlog.vue')),
 	}, {
+		path: '/spam-log',
+		name: 'spam-log',
+		component: page(() => import('@/pages/admin/spam-log.vue')),
+	}, {
 		path: '/settings',
 		name: 'settings',
 		component: page(() => import('@/pages/admin/settings.vue')),

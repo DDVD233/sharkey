@@ -195,6 +195,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.moderationLogs,
 		to: '/admin/modlog',
 		active: currentPage.value?.route.name === 'modlog',
+	}, {
+		icon: 'ti ti-shield',
+		text: 'Moderated posts',
+		to: '/admin/spam-log',
+		active: currentPage.value?.route.name === 'spam-log',
 	}],
 }, {
 	title: i18n.ts.settings,
