@@ -33,6 +33,7 @@ function buildService(overrides: {
 		spamMaxImagesPerNote: 4,
 		spamRequestTimeoutMs: 15000,
 		spamFilterSkipHosts: [],
+		spamInactiveDays: 90,
 		...overrides.meta,
 	};
 
@@ -96,16 +97,24 @@ function buildService(overrides: {
 		parse: jest.fn(() => ({ date: new Date() })),
 	};
 	const loggerService = { getLogger: () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn() }) };
+	const userProfilesRepository = { findOneBy: jest.fn(async () => null), update: jest.fn(async () => undefined) };
+	const redisClient = { set: jest.fn(async () => 'OK') };
+	const internalEventService = { on: jest.fn(), off: jest.fn() };
+	const queueService = { createSpamProfileCheckJob: jest.fn(async () => undefined) };
 
 	const service = new SpamFilterService(
 		{ url: 'https://my.instance' } as any,
 		meta as any,
+		redisClient as any,
 		usersRepository as any,
 		notesRepository as any,
+		userProfilesRepository as any,
 		driveFilesRepository as any,
 		spamLogsRepository as any,
 		httpRequestService as any,
 		globalEventService as any,
+		internalEventService as any,
+		queueService as any,
 		apRendererService as any,
 		apDeliverManagerService as any,
 		relayService as any,
@@ -116,7 +125,7 @@ function buildService(overrides: {
 		loggerService as any,
 	);
 
-	return { service, notesRepository, usersRepository, spamLogsRepository, httpRequestService, globalEventService, userSuspendService, noteCreateService, apDeliverManagerService, idService };
+	return { service, notesRepository, usersRepository, userProfilesRepository, spamLogsRepository, httpRequestService, globalEventService, userSuspendService, noteCreateService, apDeliverManagerService, idService, internalEventService };
 }
 
 describe('SpamFilterService', () => {

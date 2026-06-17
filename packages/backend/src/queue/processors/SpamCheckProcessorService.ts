@@ -24,6 +24,10 @@ export class SpamCheckProcessorService {
 
 	@bindThis
 	public async process(job: Bull.Job<SpamCheckJobData>): Promise<void> {
-		await this.spamFilterService.checkNote(job.data.noteId);
+		if (job.data.profileUserId != null) {
+			await this.spamFilterService.checkProfile(job.data.profileUserId);
+		} else if (job.data.noteId != null) {
+			await this.spamFilterService.checkNote(job.data.noteId);
+		}
 	}
 }

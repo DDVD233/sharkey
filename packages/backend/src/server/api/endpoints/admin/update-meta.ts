@@ -161,6 +161,7 @@ export const paramDef = {
 		spamFilterThresholdAd: { type: 'number' },
 		spamFilterThresholdPhishing: { type: 'number' },
 		spamAccountMaxAgeDays: { type: 'integer' },
+		spamInactiveDays: { type: 'integer' },
 		spamWindowDays: { type: 'integer' },
 		spamCountThreshold: { type: 'integer' },
 		spamFilterModeratorUserId: { type: 'string', nullable: true },
@@ -695,6 +696,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.spamFilterThresholdAd !== undefined) set.spamFilterThresholdAd = ps.spamFilterThresholdAd;
 			if (ps.spamFilterThresholdPhishing !== undefined) set.spamFilterThresholdPhishing = ps.spamFilterThresholdPhishing;
 			if (ps.spamAccountMaxAgeDays !== undefined) set.spamAccountMaxAgeDays = ps.spamAccountMaxAgeDays;
+			if (ps.spamInactiveDays !== undefined) set.spamInactiveDays = ps.spamInactiveDays;
 			if (ps.spamWindowDays !== undefined) set.spamWindowDays = ps.spamWindowDays;
 			if (ps.spamCountThreshold !== undefined) set.spamCountThreshold = ps.spamCountThreshold;
 			if (ps.spamFilterModeratorUserId !== undefined) set.spamFilterModeratorUserId = ps.spamFilterModeratorUserId;

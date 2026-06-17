@@ -72,13 +72,20 @@ export class ModerationReportService {
 
 		// Enrich with usernames and image URLs.
 		const usernames = await this.fetchUsernames(rows.map(r => r.userId));
-		const fileUrlsByNote = await this.fetchNoteImageUrls(rows.map(r => r.noteId));
+		const fileUrlsByNote = await this.fetchNoteImageUrls(rows.map(r => r.noteId).filter((x): x is string => x != null));
 
 		const lines = rows.map(r => {
+			const handle = this.handle(r.userId, r.userHost, usernames);
+			if (r.noteId == null) {
+				// profile-spam strike — link to the profile, never a note
+				const username = usernames.get(r.userId) ?? r.userId;
+				const profileUrl = `${this.config.url}/@${username}${r.userHost ? '@' + r.userHost : ''}`;
+				return `- [profile ${r.label} ${r.score.toFixed(2)}] ${handle} — ${profileUrl}${r.reason ? `\n  reason: ${r.reason}` : ''}`;
+			}
 			const noteUrl = `${this.config.url}/notes/${r.noteId}`;
 			const images = fileUrlsByNote.get(r.noteId) ?? [];
 			const imgPart = images.length > 0 ? `\n  images: ${images.join(' , ')}` : '';
-			return `- [${r.label} ${r.score.toFixed(2)}] ${this.handle(r.userId, r.userHost, usernames)} — ${noteUrl}${r.reason ? `\n  reason: ${r.reason}` : ''}${imgPart}`;
+			return `- [${r.label} ${r.score.toFixed(2)}] ${handle} — ${noteUrl}${r.reason ? `\n  reason: ${r.reason}` : ''}${imgPart}`;
 		});
 
 		const subject = `[${this.config.host}] Spam filter daily report — ${rows.length} actions (local ${local} / remote ${remote})`;

@@ -3,16 +3,19 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
-import { In, MoreThanOrEqual } from 'typeorm';
+import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
+import * as Redis from 'ioredis';
+import { In, IsNull, MoreThanOrEqual } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
-import type { MiMeta, NotesRepository, UsersRepository, DriveFilesRepository, SpamLogsRepository } from '@/models/_.js';
+import type { MiMeta, NotesRepository, UsersRepository, UserProfilesRepository, DriveFilesRepository, SpamLogsRepository } from '@/models/_.js';
 import type { MiUser } from '@/models/User.js';
 import type { SpamLabel } from '@/models/SpamLog.js';
 import { spamLabels } from '@/models/SpamLog.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { InternalEventService } from '@/core/InternalEventService.js';
+import { QueueService } from '@/core/QueueService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ApDeliverManagerService } from '@/core/activitypub/ApDeliverManagerService.js';
 import { RelayService } from '@/core/RelayService.js';
@@ -25,6 +28,8 @@ import { isSystemAccount } from '@/misc/is-system-account.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 
+const DAY_MS = 86400_000;
+
 type SpamVerdict = {
 	label: SpamLabel;
 	confidence: number;
@@ -32,7 +37,7 @@ type SpamVerdict = {
 };
 
 @Injectable()
-export class SpamFilterService {
+export class SpamFilterService implements OnApplicationShutdown {
 	private logger: Logger;
 
 	constructor(
@@ -42,11 +47,17 @@ export class SpamFilterService {
 		@Inject(DI.meta)
 		private meta: MiMeta,
 
+		@Inject(DI.redis)
+		private redisClient: Redis.Redis,
+
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
 
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
+
+		@Inject(DI.userProfilesRepository)
+		private userProfilesRepository: UserProfilesRepository,
 
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
@@ -56,6 +67,8 @@ export class SpamFilterService {
 
 		private httpRequestService: HttpRequestService,
 		private globalEventService: GlobalEventService,
+		private internalEventService: InternalEventService,
+		private queueService: QueueService,
 		private apRendererService: ApRendererService,
 		private apDeliverManagerService: ApDeliverManagerService,
 		private relayService: RelayService,
@@ -66,6 +79,31 @@ export class SpamFilterService {
 		loggerService: LoggerService,
 	) {
 		this.logger = loggerService.getLogger('spam-filter');
+		// Scan profiles on any local/remote user update (covers bio/name/fields spam).
+		this.internalEventService.on('localUserUpdated', this.onUserUpdated);
+		this.internalEventService.on('remoteUserUpdated', this.onUserUpdated);
+	}
+
+	/**
+	 * Whether a user is in scope for spam scanning: young accounts, OR older accounts that
+	 * were dormant for a while before now (dormant-then-active accounts are often stolen).
+	 */
+	@bindThis
+	public isAccountInScope(user: { id: string; lastActiveDate: Date | null }): boolean {
+		const ageMs = Date.now() - this.idService.parse(user.id).date.getTime();
+		if (ageMs < this.meta.spamAccountMaxAgeDays * DAY_MS) return true;
+		if (this.meta.spamInactiveDays > 0 && user.lastActiveDate != null
+			&& (Date.now() - user.lastActiveDate.getTime()) >= this.meta.spamInactiveDays * DAY_MS) return true;
+		return false;
+	}
+
+	@bindThis
+	private async onUserUpdated(data: { id: MiUser['id'] }): Promise<void> {
+		if (!this.meta.enableSpamFilter || !this.meta.spamFilterServerUrl) return;
+		// Throttle: scan a given user's profile at most once per hour regardless of update frequency.
+		const ok = await this.redisClient.set(`spamprofilescan:${data.id}`, '1', 'EX', 3600, 'NX');
+		if (ok == null) return;
+		this.queueService.createSpamProfileCheckJob(data.id).catch(() => { /* ignore enqueue errors */ });
 	}
 
 	@bindThis
@@ -81,59 +119,88 @@ export class SpamFilterService {
 		const author = await this.usersRepository.findOneBy({ id: note.userId });
 		if (author == null) return;
 
-		// Skip conditions.
-		if (isSystemAccount(author)) return;
-		if (author.id === this.meta.spamFilterModeratorUserId) return;
-		if (author.isSuspended) return;
-		// Large, well-moderated servers are skipped entirely (saves compute).
-		if (author.host != null && this.meta.spamFilterSkipHosts.includes(author.host)) return;
-
-		// Only scan accounts younger than the configured age (defensive re-check).
-		const accountAgeMs = Date.now() - this.idService.parse(author.id).date.getTime();
-		if (accountAgeMs >= this.meta.spamAccountMaxAgeDays * 86400_000) return;
+		if (!this.shouldScan(author)) return;
 
 		// Gather scannable content.
 		const hasText = (note.text ?? '').trim().length > 0;
 		const imageUrls = await this.collectImageUrls(note.fileIds);
 		if (!hasText && imageUrls.length === 0) return;
 
-		// Call the external classifier (fail-open on any error).
-		let verdict: SpamVerdict | null;
-		try {
-			verdict = await this.classify(note.text ?? '', imageUrls);
-		} catch (err) {
-			this.logger.warn(`spam classify failed for note ${noteId}: ${err instanceof Error ? err.message : String(err)}`);
-			return;
-		}
+		const verdict = await this.classifySafely(note.text ?? '', imageUrls, `note ${noteId}`);
 		if (verdict == null) return;
+		if (!this.isActioned(verdict)) return;
 
-		const threshold = this.thresholdFor(verdict.label);
-		if (verdict.label === 'ham' || verdict.confidence < threshold) return;
-
-		// Record the strike (audit + rolling-window source).
-		await this.spamLogsRepository.insert({
-			id: this.idService.gen(),
-			createdAt: new Date(),
-			noteId: note.id,
-			userId: author.id,
-			userHost: author.host,
-			label: verdict.label,
-			score: verdict.confidence,
-			reason: verdict.reason,
-		});
-
+		await this.recordStrike(note.id, author, verdict);
 		this.logger.info(`flagged note ${note.id} by @${author.username}${author.host ? '@' + author.host : ''} as ${verdict.label} (${verdict.confidence.toFixed(2)})`);
 
-		// Hide the note (author-only) and retract any federated copy.
 		await this.hidePrivate(note, author);
 
-		// DM the author from @dvd — local users only.
 		if (this.userEntityService.isLocalUser(author) && this.meta.spamFilterModeratorUserId) {
-			await this.notifyAuthor(author, verdict.label, note.id);
+			await this.notify(author, `Your recent post was automatically detected as ${verdict.label} and has been set to private, so it is no longer visible to others:\n${this.config.url}/notes/${note.id}\n\nThis was an automated moderation action. If you believe this is a mistake or have any questions, please reply to this post and a moderator will take a look.`);
 		}
 
-		// Rolling-window suspension.
 		await this.maybeSuspend(author);
+	}
+
+	/**
+	 * Scan a user's profile (name + bio + fields) for spam. On a hit: record a strike, clear the
+	 * profile, DM (local), and suspend at the rolling-window threshold.
+	 */
+	@bindThis
+	public async checkProfile(userId: string): Promise<void> {
+		if (!this.meta.enableSpamFilter || !this.meta.spamFilterServerUrl) return;
+
+		const user = await this.usersRepository.findOneBy({ id: userId });
+		if (user == null) return;
+		if (!this.shouldScan(user)) return;
+
+		// Dedup: at most one profile strike per user per rolling window.
+		const windowStart = new Date(Date.now() - this.meta.spamWindowDays * DAY_MS);
+		if (await this.spamLogsRepository.existsBy({ userId, noteId: IsNull(), createdAt: MoreThanOrEqual(windowStart) })) return;
+
+		const profile = await this.userProfilesRepository.findOneBy({ userId });
+		const parts: string[] = [];
+		if (user.name) parts.push(user.name);
+		if (profile?.description) parts.push(profile.description);
+		for (const f of profile?.fields ?? []) {
+			if (f?.name || f?.value) parts.push(`${f.name ?? ''}: ${f.value ?? ''}`);
+		}
+		const text = parts.join('\n').trim();
+		if (text.length === 0) return;
+
+		const verdict = await this.classifySafely(text, [], `profile ${userId}`);
+		if (verdict == null) return;
+		if (!this.isActioned(verdict)) return;
+
+		await this.recordStrike(null, user, verdict);
+		this.logger.info(`flagged profile of @${user.username}${user.host ? '@' + user.host : ''} as ${verdict.label} (${verdict.confidence.toFixed(2)})`);
+
+		// Clear the (spam) profile on our instance — for remote users this clears our cached copy.
+		await this.userProfilesRepository.update(userId, { description: '', fields: [] });
+		await this.usersRepository.update(userId, { name: null });
+		// Refresh caches; our own listener re-fire is throttled + guarded by the empty-text check above.
+		this.globalEventService.publishInternalEvent(this.userEntityService.isLocalUser(user) ? 'localUserUpdated' : 'remoteUserUpdated', { id: userId });
+
+		if (this.userEntityService.isLocalUser(user) && this.meta.spamFilterModeratorUserId) {
+			await this.notify(user, 'Your profile was automatically detected as spam and has been cleared. This was an automated moderation action. If you believe this is a mistake or have any questions, please reply to this post and a moderator will take a look.');
+		}
+
+		await this.maybeSuspend(user);
+	}
+
+	@bindThis
+	private shouldScan(user: MiUser): boolean {
+		if (isSystemAccount(user)) return false;
+		if (user.id === this.meta.spamFilterModeratorUserId) return false;
+		if (user.isSuspended) return false;
+		if (user.host != null && this.meta.spamFilterSkipHosts.includes(user.host)) return false;
+		if (!this.isAccountInScope(user)) return false;
+		return true;
+	}
+
+	@bindThis
+	private isActioned(verdict: SpamVerdict): boolean {
+		return verdict.label !== 'ham' && verdict.confidence >= this.thresholdFor(verdict.label);
 	}
 
 	@bindThis
@@ -147,6 +214,20 @@ export class SpamFilterService {
 	}
 
 	@bindThis
+	private async recordStrike(noteId: string | null, user: MiUser, verdict: SpamVerdict): Promise<void> {
+		await this.spamLogsRepository.insert({
+			id: this.idService.gen(),
+			createdAt: new Date(),
+			noteId,
+			userId: user.id,
+			userHost: user.host,
+			label: verdict.label,
+			score: verdict.confidence,
+			reason: verdict.reason,
+		});
+	}
+
+	@bindThis
 	private async collectImageUrls(fileIds: string[]): Promise<string[]> {
 		if (fileIds.length === 0) return [];
 		const files = await this.driveFilesRepository.findBy({ id: In(fileIds) });
@@ -155,6 +236,16 @@ export class SpamFilterService {
 			.map(f => f.webpublicUrl ?? f.url)
 			.filter((u): u is string => u != null)
 			.slice(0, this.meta.spamMaxImagesPerNote);
+	}
+
+	@bindThis
+	private async classifySafely(text: string, imageUrls: string[], subject: string): Promise<SpamVerdict | null> {
+		try {
+			return await this.classify(text, imageUrls);
+		} catch (err) {
+			this.logger.warn(`spam classify failed for ${subject}: ${err instanceof Error ? err.message : String(err)}`);
+			return null;
+		}
 	}
 
 	@bindThis
@@ -186,7 +277,7 @@ export class SpamFilterService {
 	}
 
 	@bindThis
-	private async hidePrivate(note: { id: string; localOnly: boolean; mentionedRemoteUsers: string; renoteUserId: string | null }, author: MiUser): Promise<void> {
+	private async hidePrivate(note: { id: string; localOnly: boolean }, author: MiUser): Promise<void> {
 		await this.notesRepository.update(note.id, {
 			visibility: 'specified',
 			visibleUserIds: [author.id],
@@ -196,7 +287,6 @@ export class SpamFilterService {
 			deletedAt: new Date(),
 		});
 
-		// Retract the federated copy with an AP Delete — only possible for local authors.
 		if (this.userEntityService.isLocalUser(author) && !note.localOnly) {
 			try {
 				const content = this.apRendererService.addContext(
@@ -214,24 +304,23 @@ export class SpamFilterService {
 	}
 
 	@bindThis
-	private async notifyAuthor(author: MiUser, label: SpamLabel, noteId: string): Promise<void> {
+	private async notify(target: MiUser, text: string): Promise<void> {
 		const moderator = await this.usersRepository.findOneBy({ id: this.meta.spamFilterModeratorUserId! });
 		if (moderator == null) return;
-		const noteUrl = `${this.config.url}/notes/${noteId}`;
 		try {
 			await this.noteCreateService.create(moderator, {
-				text: `Hi — your recent post was automatically detected as ${label} and has been set to private, so it is no longer visible to others:\n${noteUrl}\n\nThis was an automated moderation action. If you believe this is a mistake or have any questions, please reply to this post and a moderator will take a look.`,
+				text,
 				visibility: 'specified',
-				visibleUsers: [author],
+				visibleUsers: [target],
 			});
 		} catch (err) {
-			this.logger.warn(`failed to DM spam notice to ${author.id}: ${err instanceof Error ? err.message : String(err)}`);
+			this.logger.warn(`failed to DM spam notice to ${target.id}: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 
 	@bindThis
 	private async maybeSuspend(author: MiUser): Promise<void> {
-		const windowStart = new Date(Date.now() - this.meta.spamWindowDays * 86400_000);
+		const windowStart = new Date(Date.now() - this.meta.spamWindowDays * DAY_MS);
 		const count = await this.spamLogsRepository.countBy({
 			userId: author.id,
 			createdAt: MoreThanOrEqual(windowStart),
@@ -249,17 +338,14 @@ export class SpamFilterService {
 		this.logger.info(`auto-suspending @${author.username}${author.host ? '@' + author.host : ''} after ${count} spam strikes`);
 		await this.userSuspendService.suspend(author, moderator);
 
-		// Notice — local authors only.
 		if (this.userEntityService.isLocalUser(author)) {
-			try {
-				await this.noteCreateService.create(moderator, {
-					text: 'Your account has been suspended for repeated spam. If you believe this is a mistake, please contact the moderators.',
-					visibility: 'specified',
-					visibleUsers: [author],
-				});
-			} catch {
-				// best-effort; the account is being suspended anyway
-			}
+			await this.notify(author, 'Your account has been suspended for repeated spam. If you believe this is a mistake, please contact the moderators.').catch(() => {});
 		}
+	}
+
+	@bindThis
+	public onApplicationShutdown(): void {
+		this.internalEventService.off('localUserUpdated', this.onUserUpdated);
+		this.internalEventService.off('remoteUserUpdated', this.onUserUpdated);
 	}
 }

@@ -164,7 +164,8 @@ export type ScheduleNotePostJobData = {
 };
 
 export type SpamCheckJobData = {
-	noteId: MiNote['id'];
+	noteId?: MiNote['id'];
+	profileUserId?: MiUser['id'];
 };
 
 export type CsamCheckJobData = {

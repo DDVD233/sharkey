@@ -164,6 +164,17 @@ export class QueueService {
 	}
 
 	@bindThis
+	public createSpamProfileCheckJob(userId: string) {
+		return this.spamCheckQueue.add('profile', { profileUserId: userId }, {
+			jobId: `spamprofile:${userId}`,
+			removeOnComplete: true,
+			removeOnFail: 100,
+			attempts: 2,
+			backoff: { type: 'exponential', delay: 10000 },
+		});
+	}
+
+	@bindThis
 	public createCsamCheckJob(fileId: MiDriveFile['id']) {
 		return this.csamCheckQueue.add('check', { fileId }, {
 			jobId: `csam:${fileId}`,

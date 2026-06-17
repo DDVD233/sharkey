@@ -24,9 +24,13 @@ export class MiSpamLog {
 	@Column('timestamp with time zone')
 	public createdAt: Date;
 
+	/** The flagged note; null for profile-spam strikes. */
 	@Index()
-	@Column(id())
-	public noteId: string;
+	@Column({
+		...id(),
+		nullable: true,
+	})
+	public noteId: string | null;
 
 	@Index()
 	@Column(id())

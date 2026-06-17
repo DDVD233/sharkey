@@ -815,6 +815,13 @@ export class MiMeta {
 	})
 	public spamAccountMaxAgeDays: number;
 
+	/** Also scan older accounts if they were inactive for at least this many days before now
+	 * (dormant-then-active accounts are often stolen). 0 disables this rule. */
+	@Column('integer', {
+		default: 90,
+	})
+	public spamInactiveDays: number;
+
 	/** Rolling window (days) over which spam strikes are counted for auto-suspension. */
 	@Column('integer', {
 		default: 30,
