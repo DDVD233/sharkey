@@ -30,8 +30,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 					<div v-if="item.cw" :class="$style.cw">CW: {{ item.cw }}</div>
 					<div :class="$style.text">{{ item.noteExists ? (item.text ?? '(no text)') : '(note deleted)' }}</div>
+					<div v-if="item.files.length > 0" :class="$style.images">
+						<a v-for="(url, i) in item.files" :key="i" :href="url" target="_blank" rel="noopener noreferrer">
+							<img :src="url" :class="$style.thumb" loading="lazy"/>
+						</a>
+					</div>
 					<div :class="$style.itemFooter">
-						<MkA v-if="item.noteExists" :to="`/notes/${item.noteId}`" class="_link">Open post</MkA>
+						<span :class="$style.hint">Hidden (author-only) — review inline; restore to make it public.</span>
 						<MkButton small danger rounded @click="restore(item)">Restore to public &amp; remove</MkButton>
 					</div>
 				</div>
@@ -70,6 +75,7 @@ type SpamLogItem = {
 	visibility: string | null;
 	text: string | null;
 	cw: string | null;
+	files: string[];
 	userId: string;
 	username: string | null;
 	userHost: string | null;
@@ -179,6 +185,23 @@ definePage(() => ({
 	word-break: break-word;
 	max-height: 8em;
 	overflow: auto;
+}
+.images {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 8px;
+}
+.thumb {
+	max-width: 120px;
+	max-height: 120px;
+	border-radius: 8px;
+	object-fit: cover;
+	display: block;
+}
+.hint {
+	font-size: 0.85em;
+	opacity: 0.6;
 }
 .itemFooter {
 	display: flex;

@@ -6,7 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { In } from 'typeorm';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import type { SpamLogsRepository, NotesRepository, UsersRepository } from '@/models/_.js';
+import type { SpamLogsRepository, NotesRepository, UsersRepository, DriveFilesRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 
 export const meta = {
@@ -37,6 +37,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
+
+		@Inject(DI.driveFilesRepository)
+		private driveFilesRepository: DriveFilesRepository,
 	) {
 		super(meta, paramDef, async (ps) => {
 			// Only note strikes (skip profile strikes for now).
@@ -55,6 +58,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const noteMap = new Map(notes.map(n => [n.id, n]));
 			const userMap = new Map(users.map(u => [u.id, u]));
 
+			// Resolve image URLs so moderators can review hidden posts inline (the live note page
+			// denies access because the post is author-only once hidden).
+			const allFileIds = [...new Set(notes.flatMap(n => n.fileIds))];
+			const files = allFileIds.length > 0 ? await this.driveFilesRepository.findBy({ id: In(allFileIds) }) : [];
+			const fileUrlMap = new Map(files.filter(f => f.type.startsWith('image/')).map(f => [f.id, f.thumbnailUrl ?? f.webpublicUrl ?? f.url]));
+
 			return {
 				count,
 				items: logs.map(l => {
@@ -71,6 +80,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						visibility: note?.visibility ?? null,
 						text: note?.text ?? null,
 						cw: note?.cw ?? null,
+						files: (note?.fileIds ?? []).map(fid => fileUrlMap.get(fid)).filter((u): u is string => u != null),
 						userId: l.userId,
 						username: user?.username ?? null,
 						userHost: l.userHost,
