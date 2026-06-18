@@ -334,6 +334,12 @@ export class SpamFilterService implements OnApplicationShutdown {
 
 	@bindThis
 	private async maybeSuspend(author: MiUser): Promise<void> {
+		// Only local users are auto-suspended. Remote users still get each flagged post hidden and
+		// strikes recorded, but we never ban the remote account itself: their home instance owns that
+		// account's moderation, and suspending on repeated strikes is too easy to trip on federated
+		// spam (and on our own classifier's false positives against another instance's users).
+		if (!this.userEntityService.isLocalUser(author)) return;
+
 		const windowStart = new Date(Date.now() - this.meta.spamWindowDays * DAY_MS);
 		const count = await this.spamLogsRepository.countBy({
 			userId: author.id,
@@ -349,12 +355,10 @@ export class SpamFilterService implements OnApplicationShutdown {
 			return;
 		}
 
-		this.logger.info(`auto-suspending @${author.username}${author.host ? '@' + author.host : ''} after ${count} spam strikes`);
+		this.logger.info(`auto-suspending @${author.username} after ${count} spam strikes`);
 		await this.userSuspendService.suspend(author, moderator);
 
-		if (this.userEntityService.isLocalUser(author)) {
-			await this.notify(author, 'Your account has been suspended for repeated spam. If you believe this is a mistake, please contact the moderators.').catch(() => {});
-		}
+		await this.notify(author, 'Your account has been suspended for repeated spam. If you believe this is a mistake, please contact the moderators.').catch(() => {});
 	}
 
 	@bindThis
