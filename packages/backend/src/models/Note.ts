@@ -75,6 +75,12 @@ export class MiNote {
 	})
 	public cw: string | null;
 
+	@Column('varchar', {
+		length: 16, nullable: true,
+		comment: 'Detected language of the note text (ISO 639-1, e.g. "en"), or null if unknown/undetected.',
+	})
+	public lang: string | null;
+
 	@Column({
 		...id(),
 		comment: 'The ID of author.',

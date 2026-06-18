@@ -147,6 +147,24 @@ type AdminCaptchaCurrentResponse = operations['admin___captcha___current']['resp
 type AdminCaptchaSaveRequest = operations['admin___captcha___save']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminCsamAddDenylistRequest = operations['admin___csam___add-denylist']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCsamAddDenylistResponse = operations['admin___csam___add-denylist']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCsamDeleteDenylistRequest = operations['admin___csam___delete-denylist']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCsamListDenylistRequest = operations['admin___csam___list-denylist']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCsamListQuarantineRequest = operations['admin___csam___list-quarantine']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminCsamResolveQuarantineRequest = operations['admin___csam___resolve-quarantine']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
 type AdminCwUserRequest = operations['admin___cw-user']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -385,6 +403,12 @@ type AdminShowUsersResponse = operations['admin___show-users']['responses']['200
 
 // @public (undocumented)
 type AdminSilenceUserRequest = operations['admin___silence-user']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminSpamLogListRequest = operations['admin___spam-log___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminSpamLogRestoreRequest = operations['admin___spam-log___restore']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type AdminSuspendUserRequest = operations['admin___suspend-user']['requestBody']['content']['application/json'];
@@ -1525,6 +1549,12 @@ declare namespace entities {
         AdminAvatarDecorationsUpdateRequest,
         AdminCaptchaCurrentResponse,
         AdminCaptchaSaveRequest,
+        AdminCsamAddDenylistRequest,
+        AdminCsamAddDenylistResponse,
+        AdminCsamDeleteDenylistRequest,
+        AdminCsamListDenylistRequest,
+        AdminCsamListQuarantineRequest,
+        AdminCsamResolveQuarantineRequest,
         AdminCwUserRequest,
         AdminDeclineUserRequest,
         AdminDeleteAccountRequest,
@@ -1605,6 +1635,8 @@ declare namespace entities {
         AdminShowUsersRequest,
         AdminShowUsersResponse,
         AdminSilenceUserRequest,
+        AdminSpamLogListRequest,
+        AdminSpamLogRestoreRequest,
         AdminSuspendUserRequest,
         AdminSystemWebhookCreateRequest,
         AdminSystemWebhookCreateResponse,

@@ -110,6 +110,11 @@ export const paramDef = {
 		deeplFreeInstance: { type: 'string', nullable: true },
 		libreTranslateURL: { type: 'string', nullable: true },
 		libreTranslateKey: { type: 'string', nullable: true },
+		enableLlmTranslation: { type: 'boolean' },
+		llmTranslateURL: { type: 'string', nullable: true },
+		llmTranslateKey: { type: 'string', nullable: true },
+		llmTranslateModel: { type: 'string', nullable: true },
+		llmTranslatePrompt: { type: 'string', nullable: true },
 		enableEmail: { type: 'boolean' },
 		email: { type: 'string', nullable: true },
 		smtpSecure: { type: 'boolean' },
@@ -631,6 +636,42 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
+			if (ps.enableLlmTranslation !== undefined) {
+				set.enableLlmTranslation = ps.enableLlmTranslation;
+			}
+
+			if (ps.llmTranslateURL !== undefined) {
+				if (ps.llmTranslateURL === '') {
+					set.llmTranslateURL = null;
+				} else {
+					set.llmTranslateURL = ps.llmTranslateURL;
+				}
+			}
+
+			if (ps.llmTranslateKey !== undefined) {
+				if (ps.llmTranslateKey === '') {
+					set.llmTranslateKey = null;
+				} else {
+					set.llmTranslateKey = ps.llmTranslateKey;
+				}
+			}
+
+			if (ps.llmTranslateModel !== undefined) {
+				if (ps.llmTranslateModel === '') {
+					set.llmTranslateModel = null;
+				} else {
+					set.llmTranslateModel = ps.llmTranslateModel;
+				}
+			}
+
+			if (ps.llmTranslatePrompt !== undefined) {
+				if (ps.llmTranslatePrompt === '') {
+					set.llmTranslatePrompt = null;
+				} else {
+					set.llmTranslatePrompt = ps.llmTranslatePrompt;
+				}
+			}
+
 			if (ps.enableIpLogging !== undefined) {
 				set.enableIpLogging = ps.enableIpLogging;
 			}
@@ -850,6 +891,8 @@ function sanitize(meta: Partial<MiMeta>): Partial<MiMeta> {
 		objectStorageSecretKey: '<redacted>',
 		deeplAuthKey: '<redacted>',
 		libreTranslateKey: '<redacted>',
+		llmTranslateKey: '<redacted>',
+		spamFilterApiKey: '<redacted>',
 		verifymailAuthKey: '<redacted>',
 		truemailAuthKey: '<redacted>',
 	};

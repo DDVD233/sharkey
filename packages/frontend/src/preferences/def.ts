@@ -265,7 +265,7 @@ export const PREF_DEF = {
 		default: false,
 	},
 	mediaListWithOneImageAppearance: {
-		default: 'expand' as 'expand' | '16_9' | '1_1' | '2_3',
+		default: '1_1' as 'expand' | '16_9' | '1_1' | '2_3',
 	},
 	notificationPosition: {
 		default: 'rightBottom' as 'leftTop' | 'leftBottom' | 'rightTop' | 'rightBottom',

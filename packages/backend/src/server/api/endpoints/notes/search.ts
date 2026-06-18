@@ -88,6 +88,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}, {
 				untilId: ps.untilId,
 				sinceId: ps.sinceId,
+				offset: ps.offset,
 				limit: ps.limit,
 			});
 

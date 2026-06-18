@@ -473,6 +473,30 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			llmTranslateURL: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			llmTranslateKey: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			llmTranslateModel: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			llmTranslatePrompt: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
+			enableSpamFilter: {
+				type: 'boolean',
+				optional: false, nullable: false,
+			},
+			enableLlmTranslation: {
+				type: 'boolean',
+				optional: false, nullable: false,
+			},
 			defaultDarkTheme: {
 				type: 'string',
 				optional: false, nullable: true,
@@ -687,7 +711,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				defaultLike: instance.defaultLike,
 				enableEmail: instance.enableEmail,
 				enableServiceWorker: instance.enableServiceWorker,
-				translatorAvailable: instance.deeplAuthKey != null || instance.libreTranslateURL != null || instance.deeplFreeMode && instance.deeplFreeInstance != null,
+				translatorAvailable: (instance.enableLlmTranslation && instance.llmTranslateURL != null) || instance.deeplAuthKey != null || instance.libreTranslateURL != null || instance.deeplFreeMode && instance.deeplFreeInstance != null,
 				cacheRemoteFiles: instance.cacheRemoteFiles,
 				cacheRemoteSensitiveFiles: instance.cacheRemoteSensitiveFiles,
 				pinnedUsers: instance.pinnedUsers,
@@ -738,6 +762,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				deeplFreeInstance: instance.deeplFreeInstance,
 				libreTranslateURL: instance.libreTranslateURL,
 				libreTranslateKey: instance.libreTranslateKey,
+				llmTranslateURL: instance.llmTranslateURL,
+				llmTranslateKey: instance.llmTranslateKey,
+				llmTranslateModel: instance.llmTranslateModel,
+				llmTranslatePrompt: instance.llmTranslatePrompt,
+				enableSpamFilter: instance.enableSpamFilter,
+				enableLlmTranslation: instance.enableLlmTranslation,
 				enableIpLogging: instance.enableIpLogging,
 				enableActiveEmailValidation: instance.enableActiveEmailValidation,
 				enableVerifymailApi: instance.enableVerifymailApi,

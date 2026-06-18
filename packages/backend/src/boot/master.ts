@@ -19,6 +19,7 @@ import type { Config } from '@/config.js';
 import { showMachineInfo } from '@/misc/show-machine-info.js';
 import { envOption } from '@/env.js';
 import { jobQueue, server } from './common.js';
+import { startServiceServer } from './service-server.js';
 
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
@@ -75,6 +76,14 @@ export async function masterMain() {
 	}
 
 	bootLogger.info('Sharkey initialized');
+
+	// Spawn & supervise the local service server (lingua /detect + spam /classify); no-op unless enabled.
+	const stopServiceServer = startServiceServer(config, bootLogger);
+	if (stopServiceServer) {
+		for (const sig of ['exit', 'SIGINT', 'SIGTERM'] as const) {
+			process.once(sig, stopServiceServer);
+		}
+	}
 
 	if (config.sentryForBackend) {
 		Sentry.init({

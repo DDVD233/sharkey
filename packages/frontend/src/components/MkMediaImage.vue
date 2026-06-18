@@ -82,7 +82,10 @@ const url = computed(() => (props.raw || prefer.s.loadRawImages)
 	? props.image.url
 	: prefer.s.disableShowingAnimatedImages
 		? getStaticImageUrl(props.image.url)
-		: props.image.thumbnailUrl,
+		// Use the webpublic image (≤2048px) rather than the small thumbnail (498px)
+		// so in-post images aren't badly upscaled. Thumbnail is still used for the
+		// gallery micro-preview / lightbox placeholder.
+		: props.image.url,
 );
 
 async function onclick(ev: MouseEvent) {

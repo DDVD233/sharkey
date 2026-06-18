@@ -422,6 +422,36 @@ export class MiMeta {
 	})
 	public libreTranslateKey: string | null;
 
+	@Column('boolean', {
+		default: false,
+	})
+	public enableLlmTranslation: boolean;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+		comment: 'Base URL of an OpenAI-compatible (e.g. vLLM) "LLM server". Shared by LLM translation and (via the local classifier) the spam filter.',
+	})
+	public llmTranslateURL: string | null;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public llmTranslateKey: string | null;
+
+	@Column('varchar', {
+		length: 1024,
+		nullable: true,
+	})
+	public llmTranslateModel: string | null;
+
+	@Column('varchar', {
+		length: 8192,
+		nullable: true,
+	})
+	public llmTranslatePrompt: string | null;
+
 	@Column('varchar', {
 		length: 1024,
 		nullable: true,

@@ -101,7 +101,7 @@ export class SpamFilterService implements OnApplicationShutdown {
 
 	@bindThis
 	private async onUserUpdated(data: { id: MiUser['id'] }): Promise<void> {
-		if (!this.meta.enableSpamFilter || !this.meta.spamFilterServerUrl) return;
+		if (!this.meta.enableSpamFilter || !this.meta.llmTranslateURL) return;
 		// Throttle: scan a given user's profile at most once per hour regardless of update frequency.
 		const ok = await this.redisClient.set(`spamprofilescan:${data.id}`, '1', 'EX', 3600, 'NX');
 		if (ok == null) return;
@@ -110,7 +110,7 @@ export class SpamFilterService implements OnApplicationShutdown {
 
 	@bindThis
 	public async checkNote(noteId: string): Promise<void> {
-		if (!this.meta.enableSpamFilter || !this.meta.spamFilterServerUrl) return;
+		if (!this.meta.enableSpamFilter || !this.meta.llmTranslateURL) return;
 
 		const note = await this.notesRepository.findOneBy({ id: noteId });
 		if (note == null) return;
@@ -150,7 +150,7 @@ export class SpamFilterService implements OnApplicationShutdown {
 	 */
 	@bindThis
 	public async checkProfile(userId: string): Promise<void> {
-		if (!this.meta.enableSpamFilter || !this.meta.spamFilterServerUrl) return;
+		if (!this.meta.enableSpamFilter || !this.meta.llmTranslateURL) return;
 
 		const user = await this.usersRepository.findOneBy({ id: userId });
 		if (user == null) return;
@@ -252,18 +252,30 @@ export class SpamFilterService implements OnApplicationShutdown {
 
 	@bindThis
 	private async classify(text: string, imageUrls: string[]): Promise<SpamVerdict | null> {
-		const base = this.meta.spamFilterServerUrl!.replace(/\/+$/, '');
-		const res = await this.httpRequestService.send(`${base}/classify`, {
+		// The classifier is the local service server (no inbound auth). The vLLM it proxies to is
+		// the shared "LLM server" configured in the admin panel — passed through so it's set once.
+		const host = this.config.serviceServer?.host ?? '127.0.0.1';
+		const port = this.config.serviceServer?.port ?? 3061;
+		// Plain fetch (not httpRequestService): the service server is a loopback address, which
+		// the federation HTTP client blocks as a private network.
+		const res = await fetch(`http://${host}:${port}/classify`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				...(this.meta.spamFilterApiKey ? { Authorization: `Bearer ${this.meta.spamFilterApiKey}` } : {}),
 			},
-			body: JSON.stringify({ text, image_urls: imageUrls, model: this.meta.spamFilterModel }),
-			timeout: this.meta.spamRequestTimeoutMs,
-		}, {
-			throwErrorWhenResponseNotOk: true,
+			body: JSON.stringify({
+				text,
+				image_urls: imageUrls,
+				vllm_url: this.meta.llmTranslateURL,
+				vllm_key: this.meta.llmTranslateKey,
+				model: this.meta.llmTranslateModel,
+			}),
+			signal: AbortSignal.timeout(this.meta.spamRequestTimeoutMs),
 		});
+		if (!res.ok) {
+			this.logger.warn(`spam classifier returned HTTP ${res.status}`);
+			return null;
+		}
 
 		const json = await res.json() as Partial<SpamVerdict>;
 		if (json == null || typeof json.label !== 'string' || !(spamLabels as readonly string[]).includes(json.label)) {

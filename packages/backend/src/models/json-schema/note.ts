@@ -35,6 +35,10 @@ export const packedNoteSchema = {
 			type: 'string',
 			optional: true, nullable: true,
 		},
+		lang: {
+			type: 'string',
+			optional: true, nullable: true,
+		},
 		userId: {
 			type: 'string',
 			optional: false, nullable: false,

@@ -1,24 +1,46 @@
-"""
-Thin FastAPI wrapper around a vLLM-served Qwen model.
+# SPDX-FileCopyrightText: hazelnoot and other Sharkey contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Sharkey local "service server": one FastAPI process exposing the CPU-light helpers the
+# Sharkey backend calls on localhost. The Sharkey backend boot spawns and supervises this
+# (so it lives inside the same pm2 process — no Docker, no separate service to start).
+#
+# Endpoints:
+#   GET  /health   -> {"ok": true}
+#   POST /detect   -> language detection via lingua-py (CPU only)
+#   POST /classify -> spam/ad/phishing classification; proxies to a vLLM (OpenAI-compatible).
+#                     The vLLM endpoint + key + model are passed in the request by Sharkey
+#                     (single source of truth = the admin control panel), with env fallbacks.
+#
+# Env (all optional; request fields win):
+#   SERVICE_HOST / SERVICE_PORT          bind address (default 127.0.0.1 / 3061)
+#   VLLM_BASE_URL / VLLM_API_KEY / MODEL fallbacks for /classify
+#   LANGDETECT_LOW_ACCURACY=1            lingua trigram-only mode (less RAM)
 
-Exposes POST /classify which takes post text + image URLs and returns a spam verdict.
-For speed the model emits a SINGLE token ("yes"/"no"); confidence is derived from the
-token logprob, so the caller can still threshold. The model reads text inside images
-natively, so no separate OCR is needed.
-
-Auth: every request must carry `Authorization: Bearer <CLASSIFIER_API_KEY>`.
-The vLLM upstream (VLLM_BASE_URL) is never exposed publicly — see docker-compose.yml.
-"""
 import os
 import math
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel, Field
+from lingua import LanguageDetectorBuilder
 
-VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "http://vllm:8000/v1")
-MODEL = os.environ.get("MODEL", "Qwen/Qwen3.5-4B")
-API_KEY = os.environ.get("CLASSIFIER_API_KEY", "")
+# ---------------------------------------------------------------------------
+# Language detection (lingua)
+# ---------------------------------------------------------------------------
+
+_builder = LanguageDetectorBuilder.from_all_languages()
+if os.environ.get("LANGDETECT_LOW_ACCURACY", "0") == "1":
+    _builder = _builder.with_low_accuracy_mode()
+_detector = _builder.with_preloaded_language_models().build()
+
+# ---------------------------------------------------------------------------
+# Spam classification (vLLM)
+# ---------------------------------------------------------------------------
+
+VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "")
+VLLM_API_KEY = os.environ.get("VLLM_API_KEY", "")
+MODEL = os.environ.get("MODEL", "")
 REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT", "20"))
 
 # Precise definition. Bias toward "no" to keep the flag rate low (<1% target).
@@ -48,26 +70,49 @@ SYSTEM_PROMPT = (
     "If you are unsure, answer \"no\". Output only the single word \"yes\" or \"no\", nothing else."
 )
 
-app = FastAPI(title="Sharkey spam classifier")
+app = FastAPI(title="Sharkey service server")
+
+
+class DetectRequest(BaseModel):
+    text: str
+
+
+class DetectResponse(BaseModel):
+    lang: str | None  # ISO 639-1 (e.g. "en"), or None
+    confidence: float | None = None
 
 
 class ClassifyRequest(BaseModel):
     text: str = ""
     image_urls: list[str] = Field(default_factory=list)
+    # vLLM connection — passed by Sharkey (single source of truth), env as fallback.
+    vllm_url: str | None = None
+    vllm_key: str | None = None
     model: str | None = None
 
 
 class ClassifyResponse(BaseModel):
-    label: str          # "spam" or "ham" (kept in the spam/ad/phishing/ham vocabulary for the caller)
+    label: str  # "spam" or "ham"
     confidence: float
     reason: str
 
 
-def _check_auth(authorization: str | None) -> None:
-    if not API_KEY:
-        return  # auth disabled (not recommended)
-    if authorization != f"Bearer {API_KEY}":
-        raise HTTPException(status_code=401, detail="unauthorized")
+@app.get("/health")
+def health() -> dict:
+    return {"ok": True}
+
+
+@app.post("/detect", response_model=DetectResponse)
+def detect(req: DetectRequest) -> DetectResponse:
+    text = (req.text or "").strip()
+    if not text:
+        return DetectResponse(lang=None)
+    language = _detector.detect_language_of(text)
+    if language is None:
+        return DetectResponse(lang=None)
+    lang = language.iso_code_639_1.name.lower()
+    confidence = _detector.compute_language_confidence(text, language)
+    return DetectResponse(lang=lang, confidence=confidence)
 
 
 def _prob_yes(logprobs_content: list) -> float | None:
@@ -89,21 +134,24 @@ def _prob_yes(logprobs_content: list) -> float | None:
     return p_yes if seen else None
 
 
-@app.get("/health")
-async def health() -> dict:
-    return {"ok": True}
-
-
 @app.post("/classify", response_model=ClassifyResponse)
-async def classify(req: ClassifyRequest, authorization: str | None = Header(default=None)) -> ClassifyResponse:
-    _check_auth(authorization)
+async def classify(req: ClassifyRequest) -> ClassifyResponse:
+    from fastapi import HTTPException
+
+    base_url = (req.vllm_url or VLLM_BASE_URL or "").rstrip("/")
+    api_key = req.vllm_key or VLLM_API_KEY
+    model = req.model or MODEL
+    if not base_url or not model:
+        raise HTTPException(status_code=400, detail="vllm_url and model are required")
+    if not base_url.endswith("/v1"):
+        base_url = base_url + "/v1"
 
     content: list[dict] = [{"type": "text", "text": req.text or "(no text)"}]
     for url in req.image_urls[:4]:
         content.append({"type": "image_url", "image_url": {"url": url}})
 
     payload = {
-        "model": req.model or MODEL,
+        "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": content},
@@ -115,10 +163,11 @@ async def classify(req: ClassifyRequest, authorization: str | None = Header(defa
         # Qwen3.5 is a reasoning model; disable thinking so it answers yes/no directly.
         "chat_template_kwargs": {"enable_thinking": False},
     }
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
 
     try:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            resp = await client.post(f"{VLLM_BASE_URL}/chat/completions", json=payload)
+            resp = await client.post(f"{base_url}/chat/completions", json=payload, headers=headers)
             resp.raise_for_status()
             data = resp.json()
             choice = data["choices"][0]
@@ -128,7 +177,6 @@ async def classify(req: ClassifyRequest, authorization: str | None = Header(defa
 
     is_spam = token.startswith("y")
 
-    # Confidence from the first-token logprobs, when available.
     p_yes = None
     try:
         p_yes = _prob_yes((choice.get("logprobs") or {}).get("content") or [])
@@ -136,9 +184,20 @@ async def classify(req: ClassifyRequest, authorization: str | None = Header(defa
         p_yes = None
 
     if p_yes is None:
-        confidence = 0.9 if is_spam else 0.9
+        confidence = 0.9
     else:
         confidence = p_yes if is_spam else (1.0 - p_yes)
     confidence = max(0.0, min(1.0, confidence))
 
     return ClassifyResponse(label="spam" if is_spam else "ham", confidence=confidence, reason="")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host=os.environ.get("SERVICE_HOST", "127.0.0.1"),
+        port=int(os.environ.get("SERVICE_PORT", "3061")),
+        log_level="warning",
+    )

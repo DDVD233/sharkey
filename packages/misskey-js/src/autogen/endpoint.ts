@@ -38,6 +38,12 @@ import type {
 	AdminAvatarDecorationsUpdateRequest,
 	AdminCaptchaCurrentResponse,
 	AdminCaptchaSaveRequest,
+	AdminCsamAddDenylistRequest,
+	AdminCsamAddDenylistResponse,
+	AdminCsamDeleteDenylistRequest,
+	AdminCsamListDenylistRequest,
+	AdminCsamListQuarantineRequest,
+	AdminCsamResolveQuarantineRequest,
 	AdminCwUserRequest,
 	AdminDeclineUserRequest,
 	AdminDeleteAccountRequest,
@@ -118,6 +124,8 @@ import type {
 	AdminShowUsersRequest,
 	AdminShowUsersResponse,
 	AdminSilenceUserRequest,
+	AdminSpamLogListRequest,
+	AdminSpamLogRestoreRequest,
 	AdminSuspendUserRequest,
 	AdminSystemWebhookCreateRequest,
 	AdminSystemWebhookCreateResponse,
@@ -685,6 +693,11 @@ export type Endpoints = {
 	'admin/avatar-decorations/update': { req: AdminAvatarDecorationsUpdateRequest; res: EmptyResponse };
 	'admin/captcha/current': { req: EmptyRequest; res: AdminCaptchaCurrentResponse };
 	'admin/captcha/save': { req: AdminCaptchaSaveRequest; res: EmptyResponse };
+	'admin/csam/add-denylist': { req: AdminCsamAddDenylistRequest; res: AdminCsamAddDenylistResponse };
+	'admin/csam/delete-denylist': { req: AdminCsamDeleteDenylistRequest; res: EmptyResponse };
+	'admin/csam/list-denylist': { req: AdminCsamListDenylistRequest; res: EmptyResponse };
+	'admin/csam/list-quarantine': { req: AdminCsamListQuarantineRequest; res: EmptyResponse };
+	'admin/csam/resolve-quarantine': { req: AdminCsamResolveQuarantineRequest; res: EmptyResponse };
 	'admin/cw-user': { req: AdminCwUserRequest; res: EmptyResponse };
 	'admin/decline-user': { req: AdminDeclineUserRequest; res: EmptyResponse };
 	'admin/delete-account': { req: AdminDeleteAccountRequest; res: EmptyResponse };
@@ -752,6 +765,8 @@ export type Endpoints = {
 	'admin/show-user': { req: AdminShowUserRequest; res: AdminShowUserResponse };
 	'admin/show-users': { req: AdminShowUsersRequest; res: AdminShowUsersResponse };
 	'admin/silence-user': { req: AdminSilenceUserRequest; res: EmptyResponse };
+	'admin/spam-log/list': { req: AdminSpamLogListRequest; res: EmptyResponse };
+	'admin/spam-log/restore': { req: AdminSpamLogRestoreRequest; res: EmptyResponse };
 	'admin/suspend-user': { req: AdminSuspendUserRequest; res: EmptyResponse };
 	'admin/system-webhook/create': { req: AdminSystemWebhookCreateRequest; res: AdminSystemWebhookCreateResponse };
 	'admin/system-webhook/delete': { req: AdminSystemWebhookDeleteRequest; res: EmptyResponse };

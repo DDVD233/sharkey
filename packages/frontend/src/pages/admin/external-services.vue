@@ -55,6 +55,46 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkButton primary @click="save_libre">Save</MkButton>
 					</div>
 				</MkFolder>
+
+				<MkFolder>
+					<template #label>LLM server</template>
+					<template #caption>One OpenAI-compatible (e.g. vLLM) server shared by LLM translation and the spam filter. Configure it here once and toggle each feature on or off.</template>
+
+					<div class="_gaps_m">
+						<MkInput v-model="llmTranslateURL" :placeholder="'https://example.com'">
+							<template #prefix><i class="ph-globe-simple ph-bold ph-lg"></i></template>
+							<template #label>Endpoint (OpenAI-compatible base URL)</template>
+							<template #caption>Base URL of the LLM server. <code>/v1/chat/completions</code> is appended automatically.</template>
+						</MkInput>
+
+						<MkInput v-model="llmTranslateKey">
+							<template #prefix><i class="ti ti-key"></i></template>
+							<template #label>API Key</template>
+						</MkInput>
+
+						<MkInput v-model="llmTranslateModel">
+							<template #label>Model</template>
+							<template #caption>Model name to request from the server.</template>
+						</MkInput>
+
+						<MkSwitch v-model="enableLlmTranslation">
+							<template #label>Enable translation</template>
+							<template #caption>Use this server to translate notes. When on, it is the only translation service (DeepL and LibreTranslate are ignored).</template>
+						</MkSwitch>
+
+						<MkSwitch v-model="enableSpamFilter">
+							<template #label>Enable spam filter</template>
+							<template #caption>Use this server to classify spam/ad/phishing posts (via the local classifier).</template>
+						</MkSwitch>
+
+						<MkTextarea v-model="llmTranslatePrompt">
+							<template #label>Translation base prompt</template>
+							<template #caption>System prompt sent to the model for translation. <code>&#123;&#123;to&#125;&#125;</code> is replaced with the target language. Leave blank to use the built-in default.</template>
+						</MkTextarea>
+
+						<MkButton primary @click="save_llm">Save</MkButton>
+					</div>
+				</MkFolder>
 			</div>
 		</FormSuspense>
 	</div>
@@ -64,6 +104,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
 import MkInput from '@/components/MkInput.vue';
+import MkTextarea from '@/components/MkTextarea.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import FormSuspense from '@/components/form/suspense.vue';
@@ -74,6 +115,20 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import MkFolder from '@/components/MkFolder.vue';
 
+// Default LLM translation system prompt. Defined as a JS string (not in the template) so the
+// {{to}} placeholder is not parsed as Vue interpolation. Mirrors the backend default
+// (notes/translate.ts); {{to}} is replaced with the target language at request time, and the
+// note text is appended as a separate user message by the backend.
+const DEFAULT_LLM_TRANSLATE_PROMPT = `You are a professional {{to}} native translator specializing in social media posts (fediverse / Mastodon-style). Fluently translate the text into {{to}}.
+
+## Translation Rules
+1. Output only the translated content, without explanations or additional content (such as "Here's the translation:" or "Translation as follows:")
+2. The returned translation must maintain exactly the same number of paragraphs and format as the original text
+3. If the text contains HTML tags, consider where the tags should be placed in the translation while maintaining fluency
+4. For content that should not be translated (proper nouns, code, @mentions, #hashtags, URLs), keep the original text.
+5. This is casual social-media text. Correctly interpret internet slang, memes, abbreviations, clipped/shortened words and dialect, and render them naturally and idiomatically (e.g. Japanese net slang: 垢=account, 草/w/ｗｗ=lol, ガチ/クソ as intensifiers; clipped forms: ねむ←ねむい=sleepy, おは←おはよう=morning, がんば←がんばる=do my best, り←了解=got it). Translate the intended meaning and preserve the casual tone, not word-for-word.
+6. Never leave source-language words untranslated or romanized (do not output romaji/pinyin); always express the meaning in {{to}}. Keep emoticons, kaomoji (e.g. (>_<), orz) and emoji as-is.`;
+
 const translationTimeout = ref(0);
 const deeplAuthKey = ref<string | null>('');
 const deeplIsPro = ref<boolean>(false);
@@ -81,6 +136,12 @@ const deeplFreeMode = ref<boolean>(false);
 const deeplFreeInstance = ref<string | null>('');
 const libreTranslateURL = ref<string | null>('');
 const libreTranslateKey = ref<string | null>('');
+const llmTranslateURL = ref<string | null>('');
+const llmTranslateKey = ref<string | null>('');
+const llmTranslateModel = ref<string | null>('');
+const llmTranslatePrompt = ref<string | null>('');
+const enableLlmTranslation = ref<boolean>(false);
+const enableSpamFilter = ref<boolean>(false);
 
 async function init() {
 	const meta = await misskeyApi('admin/meta');
@@ -91,6 +152,13 @@ async function init() {
 	deeplFreeInstance.value = meta.deeplFreeInstance;
 	libreTranslateURL.value = meta.libreTranslateURL;
 	libreTranslateKey.value = meta.libreTranslateKey;
+	llmTranslateURL.value = meta.llmTranslateURL;
+	llmTranslateKey.value = meta.llmTranslateKey;
+	llmTranslateModel.value = meta.llmTranslateModel;
+	// Prefill with the default prompt when nothing is saved yet, so it's visible and editable.
+	llmTranslatePrompt.value = meta.llmTranslatePrompt ?? DEFAULT_LLM_TRANSLATE_PROMPT;
+	enableLlmTranslation.value = meta.enableLlmTranslation;
+	enableSpamFilter.value = meta.enableSpamFilter;
 }
 
 async function saveTranslationTimeout() {
@@ -115,6 +183,19 @@ function save_libre() {
 	os.apiWithDialog('admin/update-meta', {
 		libreTranslateURL: libreTranslateURL.value,
 		libreTranslateKey: libreTranslateKey.value,
+	}).then(() => {
+		os.promiseDialog(fetchInstance(true));
+	});
+}
+
+function save_llm() {
+	os.apiWithDialog('admin/update-meta', {
+		llmTranslateURL: llmTranslateURL.value,
+		llmTranslateKey: llmTranslateKey.value,
+		llmTranslateModel: llmTranslateModel.value,
+		llmTranslatePrompt: llmTranslatePrompt.value,
+		enableLlmTranslation: enableLlmTranslation.value,
+		enableSpamFilter: enableSpamFilter.value,
 	}).then(() => {
 		os.promiseDialog(fetchInstance(true));
 	});

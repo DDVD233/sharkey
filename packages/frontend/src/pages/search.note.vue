@@ -318,9 +318,13 @@ async function search() {
 	notePagination.value = {
 		endpoint: 'notes/search',
 		limit: 10,
+		// chronological sort paginates by id range; relevance paginates by offset
+		offsetMode: !order.value,
 		params: {
 			...searchParams.value,
-			order: order.value ? 'desc' : 'asc',
+			// only request a date sort when the "newest to oldest" toggle is on;
+			// otherwise omit `order` to get relevance-ranked results
+			...(order.value ? { order: 'desc' } : {}),
 			filetype: filetype.value,
 		},
 	};

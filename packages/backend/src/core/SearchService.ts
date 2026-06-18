@@ -100,6 +100,7 @@ export type SearchOpts = {
 export type SearchPagination = {
 	untilId?: MiNote['id'];
 	sinceId?: MiNote['id'];
+	offset?: number;
 	limit: number;
 };
 
@@ -161,6 +162,18 @@ export class SearchService {
 				],
 				sortableAttributes: [
 					'createdAt',
+				],
+				// Promote `sort` ahead of the relevance rules so that when a query
+				// explicitly sorts by createdAt (the "newest to oldest" toggle) it
+				// becomes a true chronological sort. When no sort is passed the rule
+				// is inert and Meilisearch falls back to relevance ranking.
+				rankingRules: [
+					'sort',
+					'words',
+					'typo',
+					'proximity',
+					'attribute',
+					'exactness',
 				],
 				filterableAttributes: [
 					'createdAt',
@@ -318,16 +331,23 @@ export class SearchService {
 			throw new Error('MeiliSearch is not available');
 		}
 
+		// When the caller requests a chronological order ('asc'/'desc') we sort by
+		// createdAt (the index has `sort` as its primary ranking rule, so this is a
+		// true date sort) and paginate by createdAt range. Otherwise we fall back to
+		// Meilisearch's relevance ranking and paginate by offset.
+		const dateOrder = (opts.order === 'asc' || opts.order === 'desc') ? opts.order : null;
+
 		const filter: Q = {
 			op: 'and',
 			qs: [],
 		};
-		if (pagination.untilId) filter.qs.push({
+		// createdAt-range pagination only makes sense for the chronological sort
+		if (dateOrder && pagination.untilId) filter.qs.push({
 			op: '<',
 			k: 'createdAt',
 			v: this.idService.parse(pagination.untilId).date.getTime(),
 		});
-		if (pagination.sinceId) filter.qs.push({
+		if (dateOrder && pagination.sinceId) filter.qs.push({
 			op: '>',
 			k: 'createdAt',
 			v: this.idService.parse(pagination.sinceId).date.getTime(),
@@ -348,7 +368,8 @@ export class SearchService {
 		}
 
 		const res = await this.meilisearchNoteIndex.search(q, {
-			sort: [`createdAt:${opts.order ? opts.order : 'desc'}`],
+			...(dateOrder ? { sort: [`createdAt:${dateOrder}`] } : {}),
+			...(dateOrder ? {} : { offset: pagination.offset ?? 0 }),
 			matchingStrategy: 'all',
 			attributesToRetrieve: ['id', 'createdAt'],
 			filter: compileQuery(filter),
@@ -380,6 +401,9 @@ export class SearchService {
 			return true;
 		});
 
-		return notes.sort((a, b) => a.id > b.id ? -1 : 1);
+		// Preserve the order Meilisearch returned (relevance, or createdAt asc/desc);
+		// the DB `IN (...)` query above does not guarantee any particular order.
+		const rank = new Map(res.hits.map((h, i) => [h.id, i]));
+		return notes.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
 	}
 }

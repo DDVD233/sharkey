@@ -56,6 +56,7 @@ import { trackTask } from '@/misc/promise-tracker.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
+import { LanguageDetectionService } from '@/core/LanguageDetectionService.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { CacheService } from '@/core/CacheService.js';
 
@@ -223,6 +224,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		private userBlockingService: UserBlockingService,
 		private cacheService: CacheService,
 		private latestNoteService: LatestNoteService,
+		private languageDetectionService: LanguageDetectionService,
 	) {
 		this.updateNotesCountQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseNotesCount, this.performUpdateNotesCount);
 	}
@@ -433,7 +435,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		// Remote users are always in scope; the age gate applies to local users only (young
 		// accounts, or old-but-dormant ones — lastActiveDate here is the pre-request value, so a
 		// reactivated/stolen account is caught).
-		if (this.meta.enableSpamFilter && this.meta.spamFilterServerUrl
+		if (this.meta.enableSpamFilter && this.meta.llmTranslateURL
 			&& !isSystemAccount(user)
 			&& user.id !== this.meta.spamFilterModeratorUserId
 			&& !(user.host != null && this.meta.spamFilterSkipHosts.includes(user.host))
@@ -516,6 +518,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		if (data.uri != null) insert.uri = data.uri;
 		if (data.url != null) insert.url = data.url;
+
+		// Detect the note's language synchronously (local + remote). Best-effort: returns null
+		// when the sidecar is disabled/unavailable, so it never blocks note creation.
+		insert.lang = await this.languageDetectionService.detectLanguage(insert.text);
 
 		// Append mentions data
 		if (mentionedUsers.length > 0) {

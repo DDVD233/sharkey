@@ -233,6 +233,51 @@ export type paths = {
      */
     post: operations['admin___captcha___save'];
   };
+  '/admin/csam/add-denylist': {
+    /**
+     * admin/csam/add-denylist
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+     */
+    post: operations['admin___csam___add-denylist'];
+  };
+  '/admin/csam/delete-denylist': {
+    /**
+     * admin/csam/delete-denylist
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+     */
+    post: operations['admin___csam___delete-denylist'];
+  };
+  '/admin/csam/list-denylist': {
+    /**
+     * admin/csam/list-denylist
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-user-reports*
+     */
+    post: operations['admin___csam___list-denylist'];
+  };
+  '/admin/csam/list-quarantine': {
+    /**
+     * admin/csam/list-quarantine
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-user-reports*
+     */
+    post: operations['admin___csam___list-quarantine'];
+  };
+  '/admin/csam/resolve-quarantine': {
+    /**
+     * admin/csam/resolve-quarantine
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+     */
+    post: operations['admin___csam___resolve-quarantine'];
+  };
   '/admin/cw-user': {
     /**
      * admin/cw-user
@@ -836,6 +881,24 @@ export type paths = {
      * **Credential required**: *Yes* / **Permission**: *write:admin:silence-user*
      */
     post: operations['admin___silence-user'];
+  };
+  '/admin/spam-log/list': {
+    /**
+     * admin/spam-log/list
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-user-reports*
+     */
+    post: operations['admin___spam-log___list'];
+  };
+  '/admin/spam-log/restore': {
+    /**
+     * admin/spam-log/restore
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+     */
+    post: operations['admin___spam-log___restore'];
   };
   '/admin/suspend-user': {
     /**
@@ -4651,6 +4714,7 @@ export type components = {
       deletedAt?: string | null;
       text: string | null;
       cw?: string | null;
+      lang?: string | null;
       /** Format: id */
       userId: string;
       user: components['schemas']['UserLite'];
@@ -7344,6 +7408,287 @@ export type operations = {
     };
   };
   /**
+   * admin/csam/add-denylist
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+   */
+  'admin___csam___add-denylist': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /**
+           * @default md5
+           * @enum {string}
+           */
+          hashType?: 'md5' | 'pdq';
+          hashValue: string;
+          memo?: string | null;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            id: string;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/csam/delete-denylist
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+   */
+  'admin___csam___delete-denylist': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          id: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/csam/list-denylist
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-user-reports*
+   */
+  'admin___csam___list-denylist': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 30 */
+          limit?: number;
+          /** Format: misskey:id */
+          sinceId?: string;
+          /** Format: misskey:id */
+          untilId?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/csam/list-quarantine
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-user-reports*
+   */
+  'admin___csam___list-quarantine': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 30 */
+          limit?: number;
+          /** Format: misskey:id */
+          sinceId?: string;
+          /** Format: misskey:id */
+          untilId?: string;
+          /** @enum {string} */
+          status?: 'pending' | 'confirmed' | 'dismissed';
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/csam/resolve-quarantine
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+   */
+  'admin___csam___resolve-quarantine': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          id: string;
+          /** @enum {string} */
+          action: 'confirm' | 'dismiss';
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * admin/cw-user
    * @description No description provided.
    *
@@ -9261,6 +9606,12 @@ export type operations = {
             deeplFreeInstance: string | null;
             libreTranslateURL: string | null;
             libreTranslateKey: string | null;
+            llmTranslateURL: string | null;
+            llmTranslateKey: string | null;
+            llmTranslateModel: string | null;
+            llmTranslatePrompt: string | null;
+            enableSpamFilter: boolean;
+            enableLlmTranslation: boolean;
             defaultDarkTheme: string | null;
             defaultLightTheme: string | null;
             defaultLike: string;
@@ -9450,7 +9801,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
           /** @enum {string} */
           state: '*' | 'completed' | 'wait' | 'active' | 'paused' | 'prioritized' | 'delayed' | 'failed';
         };
@@ -9596,7 +9947,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
           state: ('active' | 'paused' | 'wait' | 'delayed' | 'completed' | 'failed')[];
           search?: string;
         };
@@ -9650,7 +10001,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
         };
       };
     };
@@ -9702,7 +10053,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
         };
       };
     };
@@ -9798,7 +10149,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
           jobId: string;
         };
       };
@@ -9851,7 +10202,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
           jobId: string;
         };
       };
@@ -9904,7 +10255,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
           jobId: string;
         };
       };
@@ -11400,6 +11751,112 @@ export type operations = {
     };
   };
   /**
+   * admin/spam-log/list
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-user-reports*
+   */
+  'admin___spam-log___list': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 20 */
+          limit?: number;
+          /** @default 0 */
+          page?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/spam-log/restore
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:resolve-abuse-user-report*
+   */
+  'admin___spam-log___restore': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          id: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (without any results) */
+      204: {
+        content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * admin/suspend-user
    * @description No description provided.
    *
@@ -12183,6 +12640,11 @@ export type operations = {
           deeplFreeInstance?: string | null;
           libreTranslateURL?: string | null;
           libreTranslateKey?: string | null;
+          enableLlmTranslation?: boolean;
+          llmTranslateURL?: string | null;
+          llmTranslateKey?: string | null;
+          llmTranslateModel?: string | null;
+          llmTranslatePrompt?: string | null;
           enableEmail?: boolean;
           email?: string | null;
           smtpSecure?: boolean;
@@ -12224,6 +12686,25 @@ export type operations = {
           enableChartsForFederatedInstances?: boolean;
           enableStatsForFederatedInstances?: boolean;
           enableServerMachineStats?: boolean;
+          enableSpamFilter?: boolean;
+          spamFilterServerUrl?: string | null;
+          spamFilterApiKey?: string | null;
+          spamFilterModel?: string;
+          spamFilterThresholdSpam?: number;
+          spamFilterThresholdAd?: number;
+          spamFilterThresholdPhishing?: number;
+          spamAccountMaxAgeDays?: number;
+          spamInactiveDays?: number;
+          spamWindowDays?: number;
+          spamCountThreshold?: number;
+          spamFilterModeratorUserId?: string | null;
+          spamMaxImagesPerNote?: number;
+          spamRequestTimeoutMs?: number;
+          spamFilterSkipHosts?: string[];
+          enableCsamFilter?: boolean;
+          csamAutoSuspendOnConfirm?: boolean;
+          moderationReportEmail?: string | null;
+          moderationReportEmailSkipIfEmpty?: boolean;
           enableAchievements?: boolean;
           robotsTxt?: string | null;
           enableIdenticonGeneration?: boolean;

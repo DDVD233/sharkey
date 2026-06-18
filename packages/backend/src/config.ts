@@ -70,6 +70,13 @@ type Source = {
 		index: string;
 		scope?: 'local' | 'global' | string[];
 	};
+	serviceServer?: {
+		enabled?: boolean;
+		host?: string;
+		port?: number;
+		timeout?: number;
+		pythonPath?: string;
+	};
 	sentryForBackend?: { options: Partial<Sentry.NodeOptions>; enableNodeProfiling: boolean; };
 	sentryForFrontend?: {
 		options: Partial<SentryVue.BrowserOptions> & { dsn: string };
@@ -248,6 +255,13 @@ export type Config = {
 		ssl?: boolean;
 		index: string;
 		scope?: 'local' | 'global' | string[];
+	} | undefined;
+	serviceServer: {
+		enabled?: boolean;
+		host?: string;
+		port?: number;
+		timeout?: number;
+		pythonPath?: string;
 	} | undefined;
 	proxy: string | undefined;
 	proxySmtp: string | undefined;
@@ -440,6 +454,7 @@ export function loadConfig(): Config {
 		dbSlaves: config.dbSlaves,
 		fulltextSearch: config.fulltextSearch,
 		meilisearch: config.meilisearch,
+		serviceServer: config.serviceServer,
 		redis,
 		redisForPubsub: config.redisForPubsub ? convertRedisOptions(config.redisForPubsub, host) : redis,
 		redisForJobQueue: config.redisForJobQueue ? convertRedisOptions(config.redisForJobQueue, host) : redis,
@@ -651,6 +666,7 @@ function applyEnvOverrides(config: Source) {
 	]);
 	_apply_top(['fulltextSearch', 'provider']);
 	_apply_top(['meilisearch', ['host', 'port', 'apiKey', 'ssl', 'index', 'scope']]);
+	_apply_top(['serviceServer', ['enabled', 'host', 'port', 'timeout', 'pythonPath']]);
 	_apply_top([['sentryForFrontend', 'sentryForBackend'], 'options', ['dsn', 'profileSampleRate', 'serverName', 'includeLocalVariables', 'proxy', 'keepAlive', 'caCerts']]);
 	_apply_top(['sentryForBackend', 'enableNodeProfiling']);
 	_apply_top(['sentryForFrontend', 'vueIntegration', ['attachProps', 'attachErrorHandler']]);
