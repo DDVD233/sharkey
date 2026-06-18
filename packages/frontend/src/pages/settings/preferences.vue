@@ -157,6 +157,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</MkPreferenceContainer>
 							</SearchMarker>
 
+							<SearchMarker :keywords="['merge', 'thread', 'repl', 'conversation']">
+								<MkPreferenceContainer k="mergeThreadsInTimeline">
+									<MkSwitch v-model="mergeThreadsInTimeline">
+										<template #label><SearchLabel>{{ i18n.ts.mergeThreadsInTimeline }}</SearchLabel></template>
+										<template #caption><SearchKeyword>{{ i18n.ts.mergeThreadsInTimelineDescription }}</SearchKeyword></template>
+									</MkSwitch>
+								</MkPreferenceContainer>
+							</SearchMarker>
+
 							<SearchMarker :keywords="['collapse', 'uncollapse', 'un-collapse', 'cw', 'content', 'warning']">
 								<MkPreferenceContainer k="uncollapseCW">
 									<MkSwitch v-model="uncollapseCW">
@@ -1030,6 +1039,7 @@ const makeEveryTextElementsSelectable = prefer.model('makeEveryTextElementsSelec
 
 // Sharkey options
 const collapseNotesRepliedTo = prefer.model('collapseNotesRepliedTo');
+const mergeThreadsInTimeline = prefer.model('mergeThreadsInTimeline');
 const showTickerOnReplies = prefer.model('showTickerOnReplies');
 const searchEngine = prefer.model('searchEngine');
 const noteDesign = prefer.model('noteDesign');

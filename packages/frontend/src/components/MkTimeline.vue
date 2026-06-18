@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkPullToRefresh ref="prComponent" :refresher="() => reloadTimeline()">
-	<MkPagination v-if="paginationQuery" ref="pagingComponent" :pagination="paginationQuery" @queue="emit('queue', $event)" @status="prComponent?.setDisabled($event)">
+	<MkPagination v-if="paginationQuery" ref="pagingComponent" :pagination="paginationQuery" :displayLimit="50" @queue="emit('queue', $event)" @status="prComponent?.setDisabled($event)">
 		<template #empty>
 			<div class="_fullinfo">
 				<img :src="infoImageUrl" draggable="false"/>
@@ -23,9 +23,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:moveClass=" $style.transition_x_move"
 				tag="div"
 			>
-				<div v-for="(note, i) in notes" :key="note.id" :class="{ '_gaps': !noGap }">
-					<DynamicNote :class="$style.note" :note="note as Misskey.entities.Note" :withHardMute="true" :data-scroll-anchor="note.id"/>
-					<MkAd v-if="note._shouldInsertAd_" :preferForms="['horizontal', 'horizontal-big']" :class="$style.ad"/>
+				<div v-for="unit in groupNoteThreads(notes as Misskey.entities.Note[], prefer.s.mergeThreadsInTimeline)" :key="unit.id" :class="{ '_gaps': !noGap }">
+					<MkNoteThread v-if="unit.type === 'thread'" :class="$style.note" :notes="unit.notes" :withHardMute="true" :data-scroll-anchor="unit.id"/>
+					<DynamicNote v-else :class="$style.note" :note="unit.note" :withHardMute="true" :data-scroll-anchor="unit.id"/>
+					<MkAd v-if="unit.note._shouldInsertAd_" :preferForms="['horizontal', 'horizontal-big']" :class="$style.ad"/>
 				</div>
 			</SkTransitionGroup>
 		</template>
@@ -45,7 +46,9 @@ import { $i } from '@/i.js';
 import { instance } from '@/instance.js';
 import { prefer } from '@/preferences.js';
 import DynamicNote from '@/components/DynamicNote.vue';
+import MkNoteThread from '@/components/MkNoteThread.vue';
 import MkPagination from '@/components/MkPagination.vue';
+import { groupNoteThreads } from '@/utility/group-note-threads.js';
 import { i18n } from '@/i18n.js';
 import { infoImageUrl } from '@/instance.js';
 import SkTransitionGroup from '@/components/SkTransitionGroup.vue';

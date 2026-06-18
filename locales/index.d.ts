@@ -12270,6 +12270,14 @@ export interface Locale extends ILocale {
      */
     "collapseNotesRepliedTo": string;
     /**
+     * Merge reply threads
+     */
+    "mergeThreadsInTimeline": string;
+    /**
+     * Combine consecutive notes that form a single reply chain into one thread card in timelines.
+     */
+    "mergeThreadsInTimelineDescription": string;
+    /**
      * Collapse files
      */
     "collapseFiles": string;

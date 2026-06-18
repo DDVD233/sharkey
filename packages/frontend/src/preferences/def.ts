@@ -423,6 +423,9 @@ export const PREF_DEF = {
 	collapseNotesRepliedTo: {
 		default: false,
 	},
+	mergeThreadsInTimeline: {
+		default: true,
+	},
 	disableCatSpeak: {
 		default: false,
 	},

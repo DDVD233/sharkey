@@ -124,6 +124,8 @@ thisPostIsMissingAltText: "One of the files attached to this post is missing alt
 collapseRenotes: "Collapse boosts you've already seen"
 collapseRenotesDescription: "Collapse boosts that you have boosted or reacted to"
 collapseNotesRepliedTo: "Collapse notes replied to"
+mergeThreadsInTimeline: "Merge reply threads"
+mergeThreadsInTimelineDescription: "Combine consecutive notes that form a single reply chain into one thread card in timelines."
 collapseFiles: "Collapse files"
 uncollapseCW: "Uncollapse CWs on notes"
 expandLongNote: "Always expand long notes"
