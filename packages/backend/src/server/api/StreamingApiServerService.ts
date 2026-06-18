@@ -21,6 +21,7 @@ import { UserService } from '@/core/UserService.js';
 import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
 import { getIpHash } from '@/misc/get-ip-hash.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import type Logger from '@/logger.js';
 import { SkRateLimiterService } from '@/server/SkRateLimiterService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { AuthenticateService, AuthenticationError } from './AuthenticateService.js';
