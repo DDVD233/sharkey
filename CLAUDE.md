@@ -33,6 +33,18 @@ pnpm start                 # run built backend (expects prior build + migrate)
 pnpm lint                  # typecheck + eslint across all packages
 ```
 
+### Building & restarting this instance (production)
+
+This host defaults to Node 21, but the repo requires Node 22 (`pnpm` aborts with `ERR_PNPM_UNSUPPORTED_ENGINE` otherwise). Always select Node 22 before any `pnpm` command, and use the full `pnpm build` — it runs `build-assets`, which generates `boot.js`/`LANGS_VERSION`; building with swc alone leaves the client broken. The server runs under pm2 as `sharkey`.
+
+```bash
+export NVM_DIR=~/.nvm && source $NVM_DIR/nvm.sh && nvm use 22   # -> v22.x; do this first
+pnpm build                 # full build incl. build-assets (NOT swc alone)
+pm2 restart sharkey        # restart; pm2 logs sharkey to verify boot
+```
+
+No DB migration is needed unless entities/migrations changed (then `pnpm migrate` before restart).
+
 Per-package work is faster than `-r`:
 
 ```bash
