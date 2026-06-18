@@ -51,120 +51,139 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<Mfm :text="getNoteSummary(appearNote)" :isBlock="true" :plain="true" :nowrap="true" :author="appearNote.user" :nyaize="'respect'" :class="$style.collapsedRenoteTargetText" @click="renoteCollapsed = false; inReplyToCollapsed = false"/>
 	</div>
 	<article v-else :class="$style.article" @contextmenu.stop="onContextmenu">
-		<div style="display: flex; padding-bottom: 10px;">
-			<div v-if="appearNote.channel" :class="$style.colorBar" :style="{ background: appearNote.channel.color }"></div>
-			<MkAvatar :class="[$style.avatar, { [$style.avatarReplyTo]: appearNote.reply }]" :user="appearNote.user" :link="!mock" :preview="!mock"/>
-			<div :class="$style.main">
-				<SkNoteHeader :note="appearNote" :mini="true"/>
-			</div>
-		</div>
-		<div :class="[{ [$style.clickToOpen]: prefer.s.clickToOpen }]" @click.stop="prefer.s.clickToOpen ? noteclick(appearNote.id) : undefined">
-			<div style="container-type: inline-size;">
-				<p v-if="mergedCW != null" :class="$style.cw">
-					<Mfm
-						v-if="mergedCW != ''"
-						:text="mergedCW"
-						:author="appearNote.user"
-						:nyaize="'respect'"
-						:enableEmojiMenu="true"
-						:enableEmojiMenuReaction="true"
-						:isBlock="true"
-						class="_selectable"
-					/>
-					<MkCwButton v-model="showContent" :text="appearNote.text" :renote="appearNote.renote" :files="appearNote.files" :poll="appearNote.poll" style="margin: 4px 0;" @click.stop/>
-				</p>
-				<div v-show="mergedCW == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
-					<div :class="$style.text">
-						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
+		<div v-if="appearNote.channel" :class="$style.colorBar" :style="{ background: appearNote.channel.color }"></div>
+		<MkAvatar :class="[$style.avatar, { [$style.avatarReplyTo]: appearNote.reply }]" :user="appearNote.user" :link="!mock" :preview="!mock"/>
+		<div :class="$style.main">
+			<SkNoteHeader :note="appearNote" :mini="true"/>
+			<div :class="[{ [$style.clickToOpen]: prefer.s.clickToOpen }]" @click.stop="prefer.s.clickToOpen ? noteclick(appearNote.id) : undefined">
+				<div style="container-type: inline-size;">
+					<p v-if="mergedCW != null" :class="$style.cw">
 						<Mfm
-							v-if="appearNote.text"
-							:parsedNodes="parsed"
-							:text="appearNote.text"
+							v-if="mergedCW != ''"
+							:text="mergedCW"
 							:author="appearNote.user"
 							:nyaize="'respect'"
-							:emojiUrls="appearNote.emojis"
 							:enableEmojiMenu="true"
 							:enableEmojiMenuReaction="true"
-							:isAnim="allowAnim"
 							:isBlock="true"
+							class="_selectable"
 						/>
-						<SkNoteTranslation :note="note" :translation="translation" :translating="translating"></SkNoteTranslation>
-						<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
-						<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
+						<MkCwButton v-model="showContent" :text="appearNote.text" :renote="appearNote.renote" :files="appearNote.files" :poll="appearNote.poll" style="margin: 4px 0;" @click.stop/>
+					</p>
+					<div v-show="mergedCW == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
+						<div :class="$style.text">
+							<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
+							<div v-if="showTranslation && (translating || (translation && translation.text != null))" :class="$style.translationHeader">
+								<i class="ti ti-language-hiragana" :class="$style.translationIcon"></i>
+								<span v-if="translating">{{ i18n.ts.translating }}</span>
+								<template v-else>
+									<I18n v-if="translation && translation.sourceLang" :src="i18n.ts.translatedFrom" tag="span">
+										<template #x><b>{{ translation.sourceLang }}</b></template>
+									</I18n>
+									<span v-else>{{ i18n.ts.translate }}</span>
+									<button class="_textButton" :class="$style.showOriginal" @click.stop="showTranslation = false">{{ i18n.ts.showOriginalText }}</button>
+								</template>
+							</div>
+							<Mfm
+								v-if="showTranslation && translation && translation.text != null"
+								:text="translation.text"
+								:author="appearNote.user"
+								:nyaize="'respect'"
+								:emojiUrls="appearNote.emojis"
+								:enableEmojiMenu="true"
+								:enableEmojiMenuReaction="true"
+								:isBlock="true"
+							/>
+							<Mfm
+								v-else-if="appearNote.text"
+								:parsedNodes="parsed"
+								:text="appearNote.text"
+								:author="appearNote.user"
+								:nyaize="'respect'"
+								:emojiUrls="appearNote.emojis"
+								:enableEmojiMenu="true"
+								:enableEmojiMenuReaction="true"
+								:isAnim="allowAnim"
+								:isBlock="true"
+							/>
+							<div v-if="showTranslation && translation === false" :class="$style.translationFailed">{{ i18n.ts.translationFailed }}</div>
+							<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
+							<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
+						</div>
+						<div v-if="appearNote.files && appearNote.files.length > 0">
+							<MkMediaList ref="galleryEl" :mediaList="appearNote.files" @click.stop/>
+						</div>
+						<MkPoll v-if="appearNote.poll" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :author="appearNote.user" :emojiUrls="appearNote.emojis" :class="$style.poll" @click.stop/>
+						<div v-if="isEnabledUrlPreview">
+							<SkUrlPreviewGroup :sourceUrls="urls" :sourceNote="appearNote" :compact="true" :detail="false" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="selfNoteIds" :class="$style.urlPreview" @click.stop/>
+						</div>
+						<div v-if="appearNote.renote" :class="$style.quote"><SkNoteSimple :note="appearNote.renote" :class="$style.quoteNote"/></div>
+						<button v-if="isLong && collapsed" :class="$style.collapsed" class="_button" @click.stop @click="collapsed = false">
+							<span :class="$style.collapsedLabel">{{ i18n.ts.showMore }}</span>
+						</button>
+						<button v-else-if="isLong && !collapsed" :class="$style.showLess" class="_button" @click.stop @click="collapsed = true">
+							<span :class="$style.showLessLabel">{{ i18n.ts.showLess }}</span>
+						</button>
 					</div>
-					<div v-if="appearNote.files && appearNote.files.length > 0">
-						<MkMediaList ref="galleryEl" :mediaList="appearNote.files" @click.stop/>
-					</div>
-					<MkPoll v-if="appearNote.poll" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :author="appearNote.user" :emojiUrls="appearNote.emojis" :class="$style.poll" @click.stop/>
-					<div v-if="isEnabledUrlPreview">
-						<SkUrlPreviewGroup :sourceUrls="urls" :sourceNote="appearNote" :compact="true" :detail="false" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="selfNoteIds" :class="$style.urlPreview" @click.stop/>
-					</div>
-					<div v-if="appearNote.renote" :class="$style.quote"><SkNoteSimple :note="appearNote.renote" :class="$style.quoteNote"/></div>
-					<button v-if="isLong && collapsed" :class="$style.collapsed" class="_button" @click.stop @click="collapsed = false">
-						<span :class="$style.collapsedLabel">{{ i18n.ts.showMore }}</span>
-					</button>
-					<button v-else-if="isLong && !collapsed" :class="$style.showLess" class="_button" @click.stop @click="collapsed = true">
-						<span :class="$style.showLessLabel">{{ i18n.ts.showLess }}</span>
-					</button>
+					<MkA v-if="appearNote.channel && !inChannel" :class="$style.channel" :to="`/channels/${appearNote.channel.id}`"><i class="ti ti-device-tv"></i> {{ appearNote.channel.name }}</MkA>
 				</div>
-				<MkA v-if="appearNote.channel && !inChannel" :class="$style.channel" :to="`/channels/${appearNote.channel.id}`"><i class="ti ti-device-tv"></i> {{ appearNote.channel.name }}</MkA>
+				<MkReactionsViewer v-if="appearNote.reactionAcceptance !== 'likeOnly'" style="margin-top: 6px;" :note="appearNote" :maxNumber="16" @click.stop @mockUpdateMyReaction="emitUpdReaction">
+					<template #more>
+						<MkA :to="`/notes/${appearNote.id}/reactions`" :class="[$style.reactionOmitted]">{{ i18n.ts.more }}</MkA>
+					</template>
+				</MkReactionsViewer>
+				<footer :class="$style.footer" class="_gaps _h_gaps" tabindex="0" role="group" :aria-label="i18n.ts.noteFooterLabel">
+					<button :class="$style.footerButton" class="_button" @click.stop @click="reply()">
+						<i class="ti ti-arrow-back-up"></i>
+						<p v-if="appearNote.repliesCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.repliesCount) }}</p>
+					</button>
+					<button
+						v-if="canRenote"
+						ref="renoteButton"
+						v-tooltip="renoteTooltip"
+						:class="$style.footerButton"
+						class="_button"
+						:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
+						@click.stop
+						@mousedown.prevent="renoted ? undoRenote(appearNote) : boostVisibility($event.shiftKey)"
+					>
+						<i class="ti ti-repeat"></i>
+						<p v-if="appearNote.renoteCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.renoteCount) }}</p>
+					</button>
+					<button v-else :class="$style.footerButton" class="_button" disabled>
+						<i class="ti ti-ban"></i>
+					</button>
+					<button
+						v-if="canRenote && !props.mock && !$i?.rejectQuotes"
+						ref="quoteButton"
+						:class="$style.footerButton"
+						class="_button"
+						@click.stop
+						@mousedown="quote()"
+					>
+						<i class="ph-quotes ph-bold ph-lg"></i>
+					</button>
+					<button v-if="appearNote.myReaction == null && appearNote.reactionAcceptance !== 'likeOnly'" ref="likeButton" :class="$style.footerButton" class="_button" @click.stop @click="like()">
+						<i class="ph-heart ph-bold ph-lg"></i>
+					</button>
+					<button ref="reactButton" :class="$style.footerButton" class="_button" @click="toggleReact()" @click.stop>
+						<i v-if="appearNote.reactionAcceptance === 'likeOnly' && appearNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--MI_THEME-love);"></i>
+						<i v-else-if="appearNote.myReaction != null" class="ti ti-minus" style="color: var(--MI_THEME-accent);"></i>
+						<i v-else-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
+						<i v-else class="ph-smiley ph-bold ph-lg"></i>
+						<p v-if="(appearNote.reactionAcceptance === 'likeOnly' || prefer.s.showReactionsCount) && appearNote.reactionCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.reactionCount) }}</p>
+					</button>
+					<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" :class="$style.footerButton" class="_button" @click.stop="clip()">
+						<i class="ti ti-paperclip"></i>
+					</button>
+					<button v-if="policies.canUseTranslator && instance.translatorAvailable" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: showTranslation }]" :disabled="translating" @click.stop="translate()">
+						<i class="ti ti-language-hiragana"></i>
+					</button>
+					<button ref="menuButton" :class="$style.footerButton" class="_button" @click.stop="showMenu()">
+						<i class="ti ti-dots"></i>
+					</button>
+				</footer>
 			</div>
-			<MkReactionsViewer v-if="appearNote.reactionAcceptance !== 'likeOnly'" style="margin-top: 6px;" :note="appearNote" :maxNumber="16" @click.stop @mockUpdateMyReaction="emitUpdReaction">
-				<template #more>
-					<MkA :to="`/notes/${appearNote.id}/reactions`" :class="[$style.reactionOmitted]">{{ i18n.ts.more }}</MkA>
-				</template>
-			</MkReactionsViewer>
-			<footer :class="$style.footer" class="_gaps _h_gaps" tabindex="0" role="group" :aria-label="i18n.ts.noteFooterLabel">
-				<button :class="$style.footerButton" class="_button" @click.stop @click="reply()">
-					<i class="ti ti-arrow-back-up"></i>
-					<p v-if="appearNote.repliesCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.repliesCount) }}</p>
-				</button>
-				<button
-					v-if="canRenote"
-					ref="renoteButton"
-					v-tooltip="renoteTooltip"
-					:class="$style.footerButton"
-					class="_button"
-					:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
-					@click.stop
-					@mousedown.prevent="renoted ? undoRenote(appearNote) : boostVisibility($event.shiftKey)"
-				>
-					<i class="ti ti-repeat"></i>
-					<p v-if="appearNote.renoteCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.renoteCount) }}</p>
-				</button>
-				<button v-else :class="$style.footerButton" class="_button" disabled>
-					<i class="ti ti-ban"></i>
-				</button>
-				<button
-					v-if="canRenote && !props.mock && !$i?.rejectQuotes"
-					ref="quoteButton"
-					:class="$style.footerButton"
-					class="_button"
-					@click.stop
-					@mousedown="quote()"
-				>
-					<i class="ph-quotes ph-bold ph-lg"></i>
-				</button>
-				<button v-if="appearNote.myReaction == null && appearNote.reactionAcceptance !== 'likeOnly'" ref="likeButton" :class="$style.footerButton" class="_button" @click.stop @click="like()">
-					<i class="ph-heart ph-bold ph-lg"></i>
-				</button>
-				<button ref="reactButton" :class="$style.footerButton" class="_button" @click="toggleReact()" @click.stop>
-					<i v-if="appearNote.reactionAcceptance === 'likeOnly' && appearNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--MI_THEME-love);"></i>
-					<i v-else-if="appearNote.myReaction != null" class="ti ti-minus" style="color: var(--MI_THEME-accent);"></i>
-					<i v-else-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
-					<i v-else class="ph-smiley ph-bold ph-lg"></i>
-					<p v-if="(appearNote.reactionAcceptance === 'likeOnly' || prefer.s.showReactionsCount) && appearNote.reactionCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.reactionCount) }}</p>
-				</button>
-				<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" :class="$style.footerButton" class="_button" @click.stop="clip()">
-					<i class="ti ti-paperclip"></i>
-				</button>
-				<button v-if="prefer.s.showTranslationButtonInNoteFooter && policies.canUseTranslator && instance.translatorAvailable" class="_button" :class="$style.footerButton" :disabled="translating || !!translation" @click.stop="translate()">
-					<i class="ti ti-language-hiragana"></i>
-				</button>
-				<button ref="menuButton" :class="$style.footerButton" class="_button" @click.stop="showMenu()">
-					<i class="ti ti-dots"></i>
-				</button>
-			</footer>
 		</div>
 	</article>
 </div>
@@ -234,7 +253,6 @@ import { getPluginHandlers } from '@/plugin.js';
 import { DI } from '@/di.js';
 import { useRouter } from '@/router.js';
 import SkMutedNote from '@/components/SkMutedNote.vue';
-import SkNoteTranslation from '@/components/SkNoteTranslation.vue';
 import { getSelfNoteIds } from '@/utility/get-self-note-ids.js';
 import { extractPreviewUrls } from '@/utility/extract-preview-urls.js';
 import SkUrlPreviewGroup from '@/components/SkUrlPreviewGroup.vue';
@@ -314,6 +332,12 @@ const renoted = ref(false);
 const { muted, hardMuted } = checkMutes(appearNote.value, props.withHardMute);
 const translation = ref<Misskey.entities.NotesTranslateResponse | false | null>(null);
 const translating = ref(false);
+const showTranslation = ref(false);
+
+// Show the translation in-place once it arrives, including when triggered from the note menu.
+watch(translation, (value) => {
+	if (value != null) showTranslation.value = true;
+});
 const showTicker = (prefer.s.instanceTicker === 'always') || (prefer.s.instanceTicker === 'remote' && appearNote.value.user.instance);
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.value.visibility) || (appearNote.value.visibility === 'followers' && appearNote.value.userId === $i?.id));
 const renoteCollapsed = ref(
@@ -361,7 +385,7 @@ const keymap = {
 		clip();
 	},
 	't': () => {
-		if (prefer.s.showTranslationButtonInNoteFooter && policies.value.canUseTranslator && instance.translatorAvailable) {
+		if (policies.value.canUseTranslator && instance.translatorAvailable) {
 			translate();
 		}
 	},
@@ -494,7 +518,7 @@ if (!props.mock) {
 	}
 }
 
-function boostVisibility(forceMenu: boolean = false) {
+function boostVisibility(forceMenu = false) {
 	if (renoting) return;
 
 	if (!prefer.s.showVisibilitySelectorOnBoost && !forceMenu) {
@@ -504,7 +528,7 @@ function boostVisibility(forceMenu: boolean = false) {
 	}
 }
 
-function renote(visibility: Visibility, localOnly: boolean = false) {
+function renote(visibility: Visibility, localOnly = false) {
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 
@@ -790,6 +814,15 @@ async function clip(): Promise<void> {
 async function translate() {
 	if (props.mock) return;
 
+	// Already have a translation: just toggle between translated and original text.
+	if (translation.value) {
+		showTranslation.value = !showTranslation.value;
+		return;
+	}
+
+	// Fetch (or re-fetch after a previous failure) and reveal the translation in-place.
+	showTranslation.value = true;
+	translation.value = null;
 	await translateNote(appearNote.value.id, translation, translating);
 }
 
@@ -1096,6 +1129,8 @@ function emitUpdReaction(emoji: string, delta: number) {
 
 .article {
 	position: relative;
+	display: flex;
+	align-items: flex-start;
 	padding: 28px 32px;
 }
 
@@ -1190,6 +1225,32 @@ function emitUpdReaction(emoji: string, delta: number) {
 
 .text {
 	overflow-wrap: break-word;
+}
+
+.translationHeader {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 6px;
+	font-size: 0.85em;
+	opacity: 0.7;
+}
+
+.translationIcon {
+	margin-right: 2px;
+}
+
+.showOriginal {
+	color: var(--MI_THEME-accent);
+}
+
+.translationFailed {
+	margin-top: 8px;
+	opacity: 0.7;
+}
+
+.footerButtonActive {
+	color: var(--MI_THEME-accent);
 }
 
 .replyIcon {

@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkCwButton v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll"/>
 				</p>
 				<div v-show="mergedCW == null || showContent">
-					<MkSubNoteContent :class="$style.text" :note="note" :translating="translating" :translation="translation" :expandAllCws="props.expandAllCws"/>
+					<MkSubNoteContent v-model:showTranslation="showTranslation" :class="$style.text" :note="note" :translating="translating" :translation="translation" :expandAllCws="props.expandAllCws"/>
 				</div>
 			</div>
 			<MkReactionsViewer ref="reactionsViewer" :note="note"/>
@@ -70,7 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" :class="$style.noteFooterButton" class="_button" @click.stop="clip()">
 					<i class="ti ti-paperclip"></i>
 				</button>
-				<button v-if="prefer.s.showTranslationButtonInNoteFooter && policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="$style.noteFooterButton" :disabled="translating || !!translation" @click.stop="translate()">
+				<button v-if="policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="$style.noteFooterButton" :style="showTranslation ? 'color: var(--MI_THEME-accent) !important;' : ''" :disabled="translating" @click.stop="translate()">
 					<i class="ti ti-language-hiragana"></i>
 				</button>
 				<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @click.stop="menu()">
@@ -150,7 +150,13 @@ const hideLine = computed(() => props.detail);
 const el = shallowRef<HTMLElement>();
 const translation = ref<Misskey.entities.NotesTranslateResponse | false | null>(null);
 const translating = ref(false);
+const showTranslation = ref(false);
 const isDeleted = ref(false);
+
+// Show the translation in-place once it arrives, including when triggered from the note menu.
+watch(translation, (value) => {
+	if (value != null) showTranslation.value = true;
+});
 const renoted = ref(false);
 const reactButton = shallowRef<HTMLElement>();
 const clipButton = useTemplateRef('clipButton');
@@ -401,6 +407,15 @@ async function clip(): Promise<void> {
 }
 
 async function translate() {
+	// Already have a translation: just toggle between translated and original text.
+	if (translation.value) {
+		showTranslation.value = !showTranslation.value;
+		return;
+	}
+
+	// Fetch (or re-fetch after a previous failure) and reveal the translation in-place.
+	showTranslation.value = true;
+	translation.value = null;
 	await translateNote(appearNote.value.id, translation, translating);
 }
 

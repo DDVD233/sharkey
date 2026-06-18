@@ -95,8 +95,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</p>
 			<div v-show="mergedCW == null || showContent">
 				<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
+				<div v-if="showTranslation && (translating || (translation && translation.text != null))" :class="$style.translationHeader">
+					<i class="ti ti-language-hiragana" :class="$style.translationIcon"></i>
+					<span v-if="translating">{{ i18n.ts.translating }}</span>
+					<template v-else>
+						<I18n v-if="translation && translation.sourceLang" :src="i18n.ts.translatedFrom" tag="span">
+							<template #x><b>{{ translation.sourceLang }}</b></template>
+						</I18n>
+						<span v-else>{{ i18n.ts.translate }}</span>
+						<button class="_textButton" :class="$style.showOriginal" @click.stop="showTranslation = false">{{ i18n.ts.showOriginalText }}</button>
+					</template>
+				</div>
 				<Mfm
-					v-if="appearNote.text"
+					v-if="showTranslation && translation && translation.text != null"
+					:text="translation.text"
+					:author="appearNote.user"
+					:nyaize="'respect'"
+					:emojiUrls="appearNote.emojis"
+					:enableEmojiMenu="true"
+					:enableEmojiMenuReaction="true"
+					:isBlock="true"
+					class="_selectable"
+				/>
+				<Mfm
+					v-else-if="appearNote.text"
 					:parsedNodes="parsed"
 					:text="appearNote.text"
 					:author="appearNote.user"
@@ -108,7 +130,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:isBlock="true"
 					class="_selectable"
 				/>
-				<SkNoteTranslation :note="note" :translation="translation" :translating="translating"></SkNoteTranslation>
+				<div v-if="showTranslation && translation === false" :class="$style.translationFailed">{{ i18n.ts.translationFailed }}</div>
 				<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
 				<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
 				<div v-if="appearNote.files && appearNote.files.length > 0">
@@ -173,7 +195,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" class="_button" :class="$style.noteFooterButton" @click.stop="clip()">
 				<i class="ti ti-paperclip"></i>
 			</button>
-			<button v-if="prefer.s.showTranslationButtonInNoteFooter && policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="$style.noteFooterButton" :disabled="translating || !!translation" @click.stop="translate()">
+			<button v-if="policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="[$style.noteFooterButton, { [$style.noteFooterButtonActive]: showTranslation }]" :disabled="translating" @click.stop="translate()">
 				<i class="ti ti-language-hiragana"></i>
 			</button>
 			<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @click.stop="showMenu()">
@@ -288,7 +310,6 @@ import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
 import { DI } from '@/di.js';
 import SkMutedNote from '@/components/SkMutedNote.vue';
-import SkNoteTranslation from '@/components/SkNoteTranslation.vue';
 import { getSelfNoteIds } from '@/utility/get-self-note-ids.js';
 import SkUrlPreviewGroup from '@/components/SkUrlPreviewGroup.vue';
 
@@ -344,7 +365,13 @@ const isDeleted = ref(false);
 const renoted = ref(false);
 const translation = ref<Misskey.entities.NotesTranslateResponse | false | null>(null);
 const translating = ref(false);
+const showTranslation = ref(false);
 const parsed = computed(() => appearNote.value.text ? mfm.parse(appearNote.value.text) : []);
+
+// Show the translation in-place once it arrives, including when triggered from the note menu.
+watch(translation, (value) => {
+	if (value != null) showTranslation.value = true;
+});
 const selfNoteIds = computed(() => getSelfNoteIds(props.note));
 const animated = computed(() => parsed.value ? checkAnimationFromMfm(parsed.value) : null);
 const allowAnim = ref(prefer.s.advancedMfm && prefer.s.animatedMfm ? true : false);
@@ -392,7 +419,7 @@ const keymap = {
 		clip();
 	},
 	't': () => {
-		if (prefer.s.showTranslationButtonInNoteFooter && policies.value.canUseTranslator && instance.translatorAvailable) {
+		if (policies.value.canUseTranslator && instance.translatorAvailable) {
 			translate();
 		}
 	},
@@ -780,6 +807,15 @@ async function clip(): Promise<void> {
 }
 
 async function translate() {
+	// Already have a translation: just toggle between translated and original text.
+	if (translation.value) {
+		showTranslation.value = !showTranslation.value;
+		return;
+	}
+
+	// Fetch (or re-fetch after a previous failure) and reveal the translation in-place.
+	showTranslation.value = true;
+	translation.value = null;
 	await translateNote(appearNote.value.id, translation, translating);
 }
 
@@ -1147,6 +1183,32 @@ onUnmounted(() => {
 	&:hover {
 		color: var(--MI_THEME-fgHighlighted);
 	}
+}
+
+.noteFooterButtonActive {
+	color: var(--MI_THEME-accent);
+}
+
+.translationHeader {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 6px;
+	font-size: 0.85em;
+	opacity: 0.7;
+}
+
+.translationIcon {
+	margin-right: 2px;
+}
+
+.showOriginal {
+	color: var(--MI_THEME-accent);
+}
+
+.translationFailed {
+	margin-top: 8px;
+	opacity: 0.7;
 }
 
 .noteFooterButtonCount {

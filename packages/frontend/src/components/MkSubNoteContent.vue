@@ -8,13 +8,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="{ [$style.clickToOpen]: prefer.s.clickToOpen }" @click.stop="prefer.s.clickToOpen ? noteclick(note.id) : undefined">
 		<span v-if="note.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 		<span v-if="note.deletedAt" style="opacity: 0.5">({{ i18n.ts.deletedNote }})</span>
+		<div v-if="showTranslation && (translating || (translation && translation.text != null))" :class="$style.translationHeader">
+			<i class="ti ti-language-hiragana" :class="$style.translationIcon"></i>
+			<span v-if="translating">{{ i18n.ts.translating }}</span>
+			<template v-else>
+				<I18n v-if="translation && translation.sourceLang" :src="i18n.ts.translatedFrom" tag="span">
+					<template #x><b>{{ translation.sourceLang }}</b></template>
+				</I18n>
+				<span v-else>{{ i18n.ts.translate }}</span>
+				<button class="_textButton" :class="$style.showOriginal" @click.stop="showTranslation = false">{{ i18n.ts.showOriginalText }}</button>
+			</template>
+		</div>
 		<div>
 			<MkA v-if="note.replyId" :class="$style.reply" :to="`/notes/${note.replyId}`" @click.stop><i class="ph-arrow-bend-left-up ph-bold ph-lg"></i></MkA>
-			<Mfm v-if="note.text" :text="note.text" :author="note.user" :nyaize="'respect'" :isAnim="allowAnim" :emojiUrls="note.emojis"/>
+			<Mfm v-if="showTranslation && translation && translation.text != null" :text="translation.text" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
+			<Mfm v-else-if="note.text" :text="note.text" :author="note.user" :nyaize="'respect'" :isAnim="allowAnim" :emojiUrls="note.emojis"/>
 		</div>
+		<div v-if="showTranslation && translation === false" :class="$style.translationFailed">{{ i18n.ts.translationFailed }}</div>
 		<MkButton v-if="!allowAnim && animated && !hideFiles" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
 		<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated && !hideFiles" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
-		<SkNoteTranslation :note="note" :translation="translation" :translating="translating"></SkNoteTranslation>
 		<MkA v-if="note.renoteId" :class="$style.rp" :to="`/notes/${note.renoteId}`" @click.stop>RN: ...</MkA>
 	</div>
 	<details v-if="note.files && note.files.length > 0" :open="!prefer.s.collapseFiles && !hideFiles">
@@ -47,7 +59,6 @@ import * as os from '@/os.js';
 import { checkAnimationFromMfm } from '@/utility/check-animated-mfm.js';
 import { useRouter } from '@/router';
 import { prefer } from '@/preferences.js';
-import SkNoteTranslation from '@/components/SkNoteTranslation.vue';
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
@@ -61,6 +72,9 @@ const props = withDefaults(defineProps<{
 	hideFiles: false,
 	expandAllCws: false,
 });
+
+// Two-way: parent's translate button toggles this; the in-text "show original" link can also clear it.
+const showTranslation = defineModel<boolean>('showTranslation', { default: false });
 
 const router = useRouter();
 
@@ -129,6 +143,28 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 			}
 		}
 	}
+}
+
+.translationHeader {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 6px;
+	font-size: 0.85em;
+	opacity: 0.7;
+}
+
+.translationIcon {
+	margin-right: 2px;
+}
+
+.showOriginal {
+	color: var(--MI_THEME-accent);
+}
+
+.translationFailed {
+	margin-top: 8px;
+	opacity: 0.7;
 }
 
 .reply {

@@ -3608,6 +3608,14 @@ export interface Locale extends ILocale {
      */
     "translatedFrom": ParameterizedString<"x">;
     /**
+     * 原文を表示
+     */
+    "showOriginalText": string;
+    /**
+     * 翻訳中…
+     */
+    "translating": string;
+    /**
      * アカウントの削除が進行中です
      */
     "accountDeletionInProgress": string;
