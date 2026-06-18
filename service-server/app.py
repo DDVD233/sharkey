@@ -56,12 +56,28 @@ SYSTEM_PROMPT = (
     "posts, unsolicited bulk/identical link dumps.\n"
     "- PHISHING/SCAM: fake giveaways, crypto/airdrop/wallet scams, 'connect your wallet', "
     "'send your card number', credential or payment theft, impersonation, malware or pirated-app "
-    "download links, get-rich-quick schemes.\n\n"
+    "download links, get-rich-quick schemes.\n"
+    "- ANONYMOUS SOLICITATION / CONTACT-TRADING: the real payload is OFF the post — it tells the "
+    "reader to go elsewhere to get the goods or a contact. Examples: 'check/look at my profile "
+    "name' (看我名字 / 看我的网名 / 注意看我名 / 看姐姐名字看篇), 'add my WeChat/QQ/Telegram' (加微信 / "
+    "加VX / 扣扣 / 企鹅 / QQ群 + an id), escort/sex-work/包养 ads, paid-group or 代理 (reseller) "
+    "recruiting, 'see name for 资源/片'. This is spam EVEN WHEN the content is adult, because it "
+    "drives to an external handle instead of sharing the poster's own content in the post itself.\n\n"
+    "EVASION IS ITSELF A SPAM SIGNAL. Treat deliberate obfuscation as strong evidence of spam: "
+    "unicode filler/junk (e.g. runic 'ᚰ', decorative '☀' '❤' wedged between characters), full-width "
+    "or math-style letters spelling normal words ('ＶＸ', '𝐗𝐂', '𝙠'), homophone/character "
+    "substitution to dodge filters (威/薇 for 微信, 企鹅 for QQ, '+C' or '加C'), or a phone/ID number "
+    "split by spaces or symbols (e.g. '4➕5➕1➕0', '75275+3636'). A short post that hides a contact "
+    "handle, or sends the reader elsewhere to obtain goods/contact, is spam even if the literal "
+    "words look innocent.\n\n"
     "Answer \"no\" for everything else. In particular, the following are NOT spam:\n"
     "- An individual creator/artist sharing or selling their OWN work, commissions, shop, or "
-    "assets (e.g. booth.pm, skima, Gumroad, BOOTH, a Steam wishlist), even occasionally repeated.\n"
-    "- Adult/NSFW content, and adult creators promoting their OWN paid content (e.g. Fantia, "
-    "Fanbox, Pixiv, Patreon, OnlyFans, Ci-en, fantia.jp links).\n"
+    "assets via a named link IN the post (e.g. booth.pm, skima, Gumroad, BOOTH, a Steam wishlist), "
+    "even occasionally repeated. (Contrast: 'add my WeChat / look at my profile name for the "
+    "content', with no actual content in the post, IS spam — see above.)\n"
+    "- Adult/NSFW content, and adult creators promoting their OWN paid content via a named link "
+    "(e.g. Fantia, Fanbox, Pixiv, Patreon, OnlyFans, Ci-en, fantia.jp links). Adult talk, art, or "
+    "venting that is not selling or pointing off-post to a hidden contact is fine.\n"
     "- Game/community posts: login bonuses, gacha/referral/friend codes, game IDs (e.g. Genshin "
     "UID), event hashtags and giveaways run by the game.\n"
     "- Repeated words/characters/custom emoji (:emoji:), copypasta, keysmashes, venting, "
@@ -69,6 +85,21 @@ SYSTEM_PROMPT = (
     "conversation, news/article sharing, political or social discussion.\n\n"
     "If you are unsure, answer \"no\". Output only the single word \"yes\" or \"no\", nothing else."
 )
+
+# A few labeled examples (bilingual, to anchor the legit-creator carve-out as well as the
+# Chinese contact-solicitation / obfuscation patterns). Kept short since the model emits one token.
+FEWSHOT: list[tuple[str, str]] = [
+    ("新作公開しました！Fanboxで全部見れます → https://example.fanbox.cc/", "no"),
+    ("今日の配信おつかれさま！すごく楽しかった", "no"),
+    ("卧槽卧槽卧槽 哈哈哈哈哈", "no"),
+    ("just shipped a new commission, prints are up on my gumroad if anyone wants one", "no"),
+    ("注意看我名，是威哦", "yes"),
+    ("看姐姐名字看篇", "yes"),
+    ("CC-名字-看-电视ᚰ", "yes"),
+    ("75275+3636+我的名字", "yes"),
+    ("全国五星酒店vip卡 加微信办理", "yes"),
+    ("进群领福利 群聊号码761777381", "yes"),
+]
 
 app = FastAPI(title="Sharkey service server")
 
@@ -150,12 +181,15 @@ async def classify(req: ClassifyRequest) -> ClassifyResponse:
     for url in req.image_urls[:4]:
         content.append({"type": "image_url", "image_url": {"url": url}})
 
+    messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for ex_text, ex_answer in FEWSHOT:
+        messages.append({"role": "user", "content": [{"type": "text", "text": ex_text}]})
+        messages.append({"role": "assistant", "content": ex_answer})
+    messages.append({"role": "user", "content": content})
+
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": content},
-        ],
+        "messages": messages,
         "temperature": 0,
         "max_tokens": 1,
         "logprobs": True,

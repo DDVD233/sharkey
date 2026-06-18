@@ -2,3 +2,7 @@
 # local deployment secrets
 .env
 .env.local
+
+# spam-eval: downloaded datasets + benchmark run outputs (reproducible, not source)
+eval/data/
+eval/out*/
