@@ -117,6 +117,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					if (note.reply && note.reply.visibility === 'followers') {
 						if (!followings.has(note.reply.userId) && note.reply.userId !== me.id) return false;
 					}
+					// Drop notes whose author we no longer follow. The fanout (FTT) cache isn't
+					// cleaned on unfollow, so it can hold stale notes from now-unfollowed users.
+					// Mirror the DB fallback query: keep channel notes and our own notes, otherwise
+					// require that we currently follow the author.
+					if (note.channelId == null && note.userId !== me.id && !followings.has(note.userId)) return false;
 					if (!ps.withBots && note.user?.isBot) return false;
 
 					return true;

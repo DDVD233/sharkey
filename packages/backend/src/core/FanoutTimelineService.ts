@@ -108,6 +108,21 @@ export class FanoutTimelineService {
 		});
 	}
 
+	/**
+	 * Prepend a batch of (older, already-existing) IDs to a timeline, e.g. to backfill a
+	 * newly-followed user's recent notes into a home timeline. Order within `ids` is irrelevant
+	 * because reads sort by ID; callers must ensure every id is newer than the list's current
+	 * oldest entry, otherwise the read path would treat the timeline as complete past a hole.
+	 */
+	@bindThis
+	public backfill(name: FanoutTimelineName, ids: string[], maxlen: number) {
+		if (ids.length === 0) return;
+		const pipeline = this.redisForTimelines.pipeline();
+		pipeline.lpush('list:' + name, ...ids);
+		pipeline.ltrim('list:' + name, 0, maxlen - 1);
+		return pipeline.exec();
+	}
+
 	@bindThis
 	public purge(name: FanoutTimelineName) {
 		return this.redisForTimelines.del('list:' + name);

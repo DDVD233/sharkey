@@ -18,7 +18,8 @@ import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { UserWebhookService } from '@/core/UserWebhookService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { DI } from '@/di-symbols.js';
-import type { FollowingsRepository, FollowRequestsRepository, InstancesRepository, MiMeta, UserProfilesRepository, UsersRepository } from '@/models/_.js';
+import type { FollowingsRepository, FollowRequestsRepository, InstancesRepository, MiMeta, NotesRepository, UserProfilesRepository, UsersRepository } from '@/models/_.js';
+import { FanoutTimelineService } from '@/core/FanoutTimelineService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { bindThis } from '@/decorators.js';
@@ -74,7 +75,11 @@ export class UserFollowingService implements OnModuleInit {
 		@Inject(DI.instancesRepository)
 		private instancesRepository: InstancesRepository,
 
+		@Inject(DI.notesRepository)
+		private notesRepository: NotesRepository,
+
 		private cacheService: CacheService,
+		private fanoutTimelineService: FanoutTimelineService,
 		private utilityService: UtilityService,
 		private userEntityService: UserEntityService,
 		private idService: IdService,
@@ -276,6 +281,15 @@ export class UserFollowingService implements OnModuleInit {
 
 		await this.internalEventService.emit('follow', { followerId: follower.id, followeeId: followee.id });
 
+		// Backfill the followee's recent notes into the follower's home timeline cache so they
+		// appear immediately, instead of only from the next note onward (fanout is forward-only).
+		// Fire-and-forget: a backfill failure must never break the follow itself.
+		if (follower.host === null) {
+			this.backfillHomeTimelineOnFollow(follower.id, followee.id, withReplies).catch(err => {
+				this.logger.warn(`Failed to backfill home timeline on follow (${follower.id} => ${followee.id}): ${err}`);
+			});
+		}
+
 		const [followeeUser, followerUser] = await Promise.all([
 			this.usersRepository.findOneByOrFail({ id: followee.id }),
 			this.usersRepository.findOneByOrFail({ id: follower.id }),
@@ -334,6 +348,81 @@ export class UserFollowingService implements OnModuleInit {
 			this.notificationService.createNotification(followee.id, 'follow', {
 			}, follower.id);
 		}
+	}
+
+	/**
+	 * Inject a newly-followed user's recent notes into the follower's home timeline (FTT) cache.
+	 *
+	 * Fanout is forward-only, so without this the followee's existing notes would not appear in
+	 * home until they post again. We only inject IDs newer than each list's current oldest entry:
+	 * the FTT read path treats the cache as complete down to its oldest cached ID and only falls
+	 * back to the DB below that, so injecting anything older would hide other users' notes in the
+	 * gap. Notes older than the cache window are left to the DB-fallback path, which is correct.
+	 * Reads sort by ID, so the injected notes land in their correct chronological position.
+	 */
+	@bindThis
+	private async backfillHomeTimelineOnFollow(followerId: MiUser['id'], followeeId: MiUser['id'], withReplies?: boolean): Promise<void> {
+		if (!this.meta.enableFanoutTimeline) return;
+
+		const homeMax = this.meta.perUserHomeTimelineCacheMax;
+		const homeWithFilesMax = Math.floor(homeMax / 2);
+		const backfillLimit = 20;
+
+		const [homeIds, homeWithFilesIds] = await Promise.all([
+			this.fanoutTimelineService.get(`homeTimeline:${followerId}`),
+			this.fanoutTimelineService.get(`homeTimelineWithFiles:${followerId}`),
+		]);
+
+		// `get()` returns IDs sorted newest-first, so the last element is the oldest (the floor).
+		// An empty cache means reads already fall back to the DB, so there is nothing to backfill.
+		const homeFloor = homeIds.at(-1);
+		const homeWithFilesFloor = homeWithFilesIds.at(-1);
+
+		await Promise.all([
+			(async () => {
+				if (homeFloor == null) return;
+				const ids = await this.fetchFolloweeNotesForBackfill(followeeId, followerId, withReplies, homeFloor, backfillLimit, false);
+				await this.fanoutTimelineService.backfill(`homeTimeline:${followerId}`, ids, homeMax);
+			})(),
+			(async () => {
+				if (homeWithFilesFloor == null) return;
+				const ids = await this.fetchFolloweeNotesForBackfill(followeeId, followerId, withReplies, homeWithFilesFloor, backfillLimit, true);
+				await this.fanoutTimelineService.backfill(`homeTimelineWithFiles:${followerId}`, ids, homeWithFilesMax);
+			})(),
+		]);
+	}
+
+	/**
+	 * Fetch the most recent note IDs of `followeeId` that belong in `followerId`'s home timeline,
+	 * mirroring the home-timeline fanout rules in NoteCreateService (own non-channel notes, visible
+	 * to followers, replies only when `withReplies`). `sinceExclusive` is the cache floor — only
+	 * notes strictly newer than it are returned.
+	 */
+	@bindThis
+	private async fetchFolloweeNotesForBackfill(followeeId: MiUser['id'], followerId: MiUser['id'], withReplies: boolean | undefined, sinceExclusive: string, limit: number, withFiles: boolean): Promise<string[]> {
+		const query = this.notesRepository.createQueryBuilder('note')
+			.select('note.id')
+			.where('note.userId = :followeeId', { followeeId })
+			.andWhere('note.id > :since', { since: sinceExclusive })
+			.andWhere('note.channelId IS NULL')
+			.andWhere('note.visibility IN (:...visibilities)', { visibilities: ['public', 'home', 'followers'] })
+			.orderBy('note.id', 'DESC')
+			.limit(limit);
+
+		// Mirror isReply(note, followerId): exclude replies to others unless `withReplies`.
+		if (!withReplies) {
+			query.andWhere(new Brackets(qb => qb
+				.where('note.replyId IS NULL')
+				.orWhere('note.replyUserId = note.userId')
+				.orWhere('note.replyUserId = :followerId', { followerId })));
+		}
+
+		if (withFiles) {
+			query.andWhere('note.fileIds != \'{}\'');
+		}
+
+		const notes = await query.getMany();
+		return notes.map(note => note.id);
 	}
 
 	@bindThis
