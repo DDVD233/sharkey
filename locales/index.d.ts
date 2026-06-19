@@ -6085,6 +6085,14 @@ export interface Locale extends ILocale {
          * 初期設定をあとでやり直しますか？
          */
         "laterAreYouSure": string;
+        /**
+         * Select your language
+         */
+        "selectLanguage": string;
+        /**
+         * Choose the language you'd like to use. If you change it, the page will reload and the rest of the setup will continue in your selected language.
+         */
+        "selectLanguageDescription": string;
     };
     "_initialTutorial": {
         /**
@@ -13307,6 +13315,92 @@ export interface Locale extends ILocale {
      * Signup Reason
      */
     "signupReason": string;
+    "_recommendation": {
+        /**
+         * Only notes with images (multimodal)
+         */
+        "prefillImagesOnly": string;
+        /**
+         * Analytics
+         */
+        "analytics": string;
+        /**
+         * Total posts recommended
+         */
+        "totalRecommended": string;
+        /**
+         * Users who used recommendations
+         */
+        "totalUsers": string;
+        /**
+         * Posts recommended per day
+         */
+        "recommendedPerDay": string;
+        /**
+         * Users using recommendations per day
+         */
+        "activeUsersPerDay": string;
+        /**
+         * Reaction rate per day
+         */
+        "reactionRatePerDay": string;
+        /**
+         * Per-user usage
+         */
+        "usersTable": string;
+        /**
+         * Viewed
+         */
+        "viewed": string;
+        /**
+         * Recent-day views
+         */
+        "recentViewed": string;
+        /**
+         * Like rate
+         */
+        "likeRate": string;
+        /**
+         * Recent-day like rate
+         */
+        "recentLikeRate": string;
+        /**
+         * The recommendation feed (/explore and the timeline tab) uses note embeddings + Milvus ANN. Below you can (re)build the data it needs.
+         */
+        "about": string;
+        /**
+         * Initialize all user vectors
+         */
+        "initVectors": string;
+        /**
+         * Build every local user's interest vector from their full history (reactions, favourites, renotes, replies, own posts, and people they follow). Run once after enabling, then it stays up to date automatically.
+         */
+        "initVectorsDescription": string;
+        /**
+         * Rebuild all user vectors
+         */
+        "rebuildVectors": string;
+        /**
+         * Recompute interest vectors from each user's recent engagement. Lighter than the full history initialization.
+         */
+        "rebuildVectorsDescription": string;
+        /**
+         * Prefill note embeddings
+         */
+        "prefill": string;
+        /**
+         * Embed recent public notes so they can be recommended. Runs in the background.
+         */
+        "prefillDescription": string;
+        /**
+         * Days back
+         */
+        "prefillDays": string;
+        /**
+         * Languages (comma-separated)
+         */
+        "prefillLangs": string;
+    };
 }
 declare const locales: {
     [lang: string]: Locale;

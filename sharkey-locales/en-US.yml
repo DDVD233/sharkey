@@ -186,6 +186,8 @@ _delivery:
   resume: "Resume delivery"
 _initialAccountSetting:
   youCanContinueTutorial: "You can proceed to a tutorial on how to use {name} (Sharkey) or you can exit the setup here and start using it immediately."
+  selectLanguage: "Select your language"
+  selectLanguageDescription: "Choose the language you'd like to use. If you change it, the page will reload and the rest of the setup will continue in your selected language."
 _initialTutorial:
   _landing:
     description: "Here, you can learn the basics of using Sharkey and its features."
@@ -632,3 +634,25 @@ rawInfoDescription: "Extended user data in its raw form. These fields are privat
 rawApDescription: "ActivityPub user data in its raw form. These fields are public and accessible to other instances."
 
 signupReason: "Signup Reason"
+_recommendation:
+  prefillImagesOnly: "Only notes with images (multimodal)"
+  analytics: "Analytics"
+  totalRecommended: "Total posts recommended"
+  totalUsers: "Users who used recommendations"
+  recommendedPerDay: "Posts recommended per day"
+  activeUsersPerDay: "Users using recommendations per day"
+  reactionRatePerDay: "Reaction rate per day"
+  usersTable: "Per-user usage"
+  viewed: "Viewed"
+  recentViewed: "Recent-day views"
+  likeRate: "Like rate"
+  recentLikeRate: "Recent-day like rate"
+  about: "The recommendation feed (/explore and the timeline tab) uses note embeddings + Milvus ANN. Below you can (re)build the data it needs."
+  initVectors: "Initialize all user vectors"
+  initVectorsDescription: "Build every local user's interest vector from their full history (reactions, favourites, renotes, replies, own posts, and people they follow). Run once after enabling, then it stays up to date automatically."
+  rebuildVectors: "Rebuild all user vectors"
+  rebuildVectorsDescription: "Recompute interest vectors from each user's recent engagement. Lighter than the full history initialization."
+  prefill: "Prefill note embeddings"
+  prefillDescription: "Embed recent public notes so they can be recommended. Runs in the background."
+  prefillDays: "Days back"
+  prefillLangs: "Languages (comma-separated)"
