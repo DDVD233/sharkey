@@ -95,6 +95,12 @@ export class MiUser {
 	})
 	public notesCount: number;
 
+	@Column('varchar', {
+		length: 16, nullable: true,
+		comment: 'Language inferred from the majority of the user\'s recent notes (ISO 639-1, e.g. "en"), or null if not yet computed.',
+	})
+	public inferredLang: string | null;
+
 	@Column({
 		...id(),
 		nullable: true,

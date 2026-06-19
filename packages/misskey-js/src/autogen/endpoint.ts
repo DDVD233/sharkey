@@ -95,6 +95,7 @@ import type {
 	AdminQueueRetryJobRequest,
 	AdminQueueShowJobRequest,
 	AdminQueueStatsResponse,
+	AdminRecommendationRebuildUserVectorsResponse,
 	AdminRejectQuotesRequest,
 	AdminRelaysAddRequest,
 	AdminRelaysAddResponse,
@@ -529,6 +530,8 @@ import type {
 	NotesReactionsResponse,
 	NotesReactionsCreateRequest,
 	NotesReactionsDeleteRequest,
+	NotesRecommendationsRequest,
+	NotesRecommendationsResponse,
 	NotesRenotesRequest,
 	NotesRenotesResponse,
 	NotesRepliesRequest,
@@ -744,6 +747,7 @@ export type Endpoints = {
 	'admin/queue/retry-job': { req: AdminQueueRetryJobRequest; res: EmptyResponse };
 	'admin/queue/show-job': { req: AdminQueueShowJobRequest; res: EmptyResponse };
 	'admin/queue/stats': { req: EmptyRequest; res: AdminQueueStatsResponse };
+	'admin/recommendation/rebuild-user-vectors': { req: EmptyRequest; res: AdminRecommendationRebuildUserVectorsResponse };
 	'admin/reject-quotes': { req: AdminRejectQuotesRequest; res: EmptyResponse };
 	'admin/relays/add': { req: AdminRelaysAddRequest; res: AdminRelaysAddResponse };
 	'admin/relays/list': { req: EmptyRequest; res: AdminRelaysListResponse };
@@ -1026,6 +1030,7 @@ export type Endpoints = {
 	'notes/reactions': { req: NotesReactionsRequest; res: NotesReactionsResponse };
 	'notes/reactions/create': { req: NotesReactionsCreateRequest; res: EmptyResponse };
 	'notes/reactions/delete': { req: NotesReactionsDeleteRequest; res: EmptyResponse };
+	'notes/recommendations': { req: NotesRecommendationsRequest; res: NotesRecommendationsResponse };
 	'notes/renotes': { req: NotesRenotesRequest; res: NotesRenotesResponse };
 	'notes/replies': { req: NotesRepliesRequest; res: NotesRepliesResponse };
 	'notes/schedule/create': { req: NotesScheduleCreateRequest; res: EmptyResponse };

@@ -41,6 +41,7 @@ import {
 	MiMuting,
 	MiNote,
 	MiNoteFavorite,
+	MiNoteRecommendationImpression,
 	MiNoteReaction,
 	MiNoteSchedule,
 	MiNoteThreadMuting,
@@ -158,6 +159,12 @@ const $apInboxLogsRepository: Provider = {
 const $noteFavoritesRepository: Provider = {
 	provide: DI.noteFavoritesRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiNoteFavorite).extend(miRepository as MiRepository<MiNoteFavorite>),
+	inject: [DI.db],
+};
+
+const $noteRecommendationImpressionsRepository: Provider = {
+	provide: DI.noteRecommendationImpressionsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiNoteRecommendationImpression).extend(miRepository as MiRepository<MiNoteRecommendationImpression>),
 	inject: [DI.db],
 };
 
@@ -607,6 +614,7 @@ const $noteScheduleRepository: Provider = {
 		$apFetchLogsRepository,
 		$apInboxLogsRepository,
 		$noteFavoritesRepository,
+		$noteRecommendationImpressionsRepository,
 		$noteThreadMutingsRepository,
 		$noteReactionsRepository,
 		$pollsRepository,
@@ -692,6 +700,7 @@ const $noteScheduleRepository: Provider = {
 		$apFetchLogsRepository,
 		$apInboxLogsRepository,
 		$noteFavoritesRepository,
+		$noteRecommendationImpressionsRepository,
 		$noteThreadMutingsRepository,
 		$noteReactionsRepository,
 		$pollsRepository,

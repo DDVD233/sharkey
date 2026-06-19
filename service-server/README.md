@@ -50,6 +50,54 @@ curl -s localhost:3061/health   # {"ok": true}
 Memory: lingua preloads all language models for best short-text accuracy. Set
 `LANGDETECT_LOW_ACCURACY=1` to use trigram-only models if RAM is tight.
 
+## Language detection & inferred user language
+
+`/detect` returns a relative confidence, not an absolute probability (clear English short text
+can score ~0.16 while CJK scores ~1.0). So Sharkey does **not** trust a raw threshold. Instead, on
+note creation it resolves the stored `note.lang` against the author's **inferred language** — the
+majority language over their most recent 100 notes, stored on `user.inferredLang`:
+
+- low-confidence detection of a **trusted** lang (`zh ja en es ru`) → keep it unless very low;
+- detection of an **untrusted** lang (everything else — almost always a short-text misdetection)
+  → fall back to the user's inferred language unless highly confident;
+- **CJK cross-correction**: a note detected as `zh`/`ko` whose author's inferred language is `ja`
+  (or vice-versa) is relabeled to the author's language, regardless of confidence.
+
+This corrects ~12% of notes. The rules live once in `service-server/lang_resolve.py` and are
+mirrored in `packages/backend/src/core/LanguageDetectionService.ts` (`resolveNoteLang`) — change
+both together. Thresholds are tunable via the backend `langDetection` config block:
+
+```yaml
+langDetection:
+  minConfidence: 0.30             # trusted-lang threshold
+  minConfidenceUntrusted: 0.85    # everything else (skeptical)
+  trustedLangs: ['zh', 'ja', 'en', 'es', 'ru']
+  cjkCrossCorrect: true
+  minNotesForInferred: 5          # min classified notes before a user gets an inferred lang
+```
+
+`user.inferredLang` is refreshed three ways: after each post (best-effort), nightly for active
+users (`rebuildUserInferredLangs` system job), and via the backfill below.
+
+### Backfill
+
+`note.lang` is filled for existing rows by `backfill_lang.py` (keyset scan + lingua fork pool).
+`backfill_user_lang.py` then derives the per-user inferred language and can optionally re-resolve
+historical notes:
+
+```bash
+# env: PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD
+# Phase 1 — user.inferredLang for ALL users (local + remote). Fast, pure SQL (no detection):
+python3 service-server/backfill_user_lang.py
+
+# Phase 2 — OPTIONAL/HEAVY: re-resolve note.lang for old notes using the same spec (re-runs
+# lingua to recover confidence; cost ~= backfill_lang.py). Run after phase 1:
+python3 service-server/backfill_user_lang.py --annotate-notes --workers 8
+```
+
+Both phases are keyset-paginated, checkpointed (`.backfill_user_lang.checkpoint[.notes]`) and
+SIGTERM-safe, so they resume where they left off. `--restart` ignores the checkpoint.
+
 ## Logs
 
 The process's stdout/stderr are piped into the Sharkey logger (sub-logger `service-server`), so

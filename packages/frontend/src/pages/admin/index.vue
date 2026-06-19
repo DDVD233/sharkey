@@ -37,6 +37,7 @@ import { onActivated, onMounted, onUnmounted, provide, watch, ref, computed } fr
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import type { PageMetadata } from '@/page.js';
 import { i18n } from '@/i18n.js';
+import { $i } from '@/i.js';
 import MkSuperMenu from '@/components/MkSuperMenu.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import { instance } from '@/instance.js';
@@ -261,7 +262,17 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.database,
 		to: '/admin/database',
 		active: currentPage.value?.route.name === 'database',
-	}],
+	}, ...($i?.isAdmin ? [{
+		icon: 'ti ti-sparkles',
+		text: i18n.ts.recommendations,
+		to: '/admin/recommendation',
+		active: currentPage.value?.route.name === 'recommendation',
+	}, {
+		icon: 'ti ti-chart-bar',
+		text: i18n.ts._recommendation.analytics,
+		to: '/admin/recommendation-analytics',
+		active: currentPage.value?.route.name === 'recommendationAnalytics',
+	}] : [])],
 }]);
 
 onMounted(() => {

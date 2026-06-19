@@ -95,9 +95,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</p>
 			<div v-show="mergedCW == null || showContent">
 				<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
-				<div v-if="showTranslation && (translating || (translation && translation.text != null))" :class="$style.translationHeader">
+				<div v-if="showTranslation && (translating || (translation && translation.text != null) || translation === false)" :class="$style.translationHeader">
 					<i class="ti ti-language-hiragana" :class="$style.translationIcon"></i>
 					<span v-if="translating">{{ i18n.ts.translating }}</span>
+					<template v-else-if="translation === false">
+						<span>{{ i18n.ts.translationFailed }}</span>
+						<button class="_textButton" :class="$style.showOriginal" @click.stop="translate()">{{ i18n.ts.retry }}</button>
+					</template>
 					<template v-else>
 						<I18n v-if="translation && translation.sourceLang" :src="i18n.ts.translatedFrom" tag="span">
 							<template #x><b>{{ translation.sourceLang }}</b></template>
@@ -130,7 +134,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:isBlock="true"
 					class="_selectable"
 				/>
-				<div v-if="showTranslation && translation === false" :class="$style.translationFailed">{{ i18n.ts.translationFailed }}</div>
 				<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
 				<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
 				<div v-if="appearNote.files && appearNote.files.length > 0">
@@ -195,7 +198,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" class="_button" :class="$style.noteFooterButton" @click.stop="clip()">
 				<i class="ti ti-paperclip"></i>
 			</button>
-			<button v-if="policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="[$style.noteFooterButton, { [$style.noteFooterButtonActive]: showTranslation }]" :disabled="translating" @click.stop="translate()">
+			<button v-if="prefer.s.showTranslationButtonInNoteFooter && policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="[$style.noteFooterButton, { [$style.noteFooterButtonActive]: showTranslation }]" :disabled="translating" @click.stop="translate()">
 				<i class="ti ti-language-hiragana"></i>
 			</button>
 			<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @click.stop="showMenu()">
@@ -290,7 +293,7 @@ import { reactionPicker } from '@/utility/reaction-picker.js';
 import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
-import { getNoteClipMenu, getNoteMenu, getRenoteMenu, translateNote } from '@/utility/get-note-menu.js';
+import { getNoteClipMenu, getNoteMenu, getRenoteMenu, translateNoteWithPrompt, maybeAutoTranslateNote } from '@/utility/get-note-menu.js';
 import { getNoteVersionsMenu } from '@/utility/get-note-versions-menu.js';
 import { checkAnimationFromMfm } from '@/utility/check-animated-mfm.js';
 import { useNoteCapture } from '@/use/use-note-capture.js';
@@ -372,6 +375,9 @@ const parsed = computed(() => appearNote.value.text ? mfm.parse(appearNote.value
 watch(translation, (value) => {
 	if (value != null) showTranslation.value = true;
 });
+
+// Auto-translate on load when enabled and the note isn't in the user's language (non-blocking).
+onMounted(() => maybeAutoTranslateNote(appearNote.value, translation, translating));
 const selfNoteIds = computed(() => getSelfNoteIds(props.note));
 const animated = computed(() => parsed.value ? checkAnimationFromMfm(parsed.value) : null);
 const allowAnim = ref(prefer.s.advancedMfm && prefer.s.animatedMfm ? true : false);
@@ -816,7 +822,7 @@ async function translate() {
 	// Fetch (or re-fetch after a previous failure) and reveal the translation in-place.
 	showTranslation.value = true;
 	translation.value = null;
-	await translateNote(appearNote.value.id, translation, translating);
+	await translateNoteWithPrompt(appearNote.value.id, translation, translating);
 }
 
 function showRenoteMenu(): void {

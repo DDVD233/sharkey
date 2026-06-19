@@ -14,6 +14,12 @@ import { renderInlineError } from '@/misc/render-inline-error.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
 
+// Maximum length of an inline URL/ID we will persist. The relevant MiUser
+// columns (inbox, sharedInbox, followersUri, featured, uri, …) are all
+// varchar(512), so anything longer overflows the column and aborts the
+// whole person save with "value too long for type character varying(512)".
+const maxUrlLength = 512;
+
 @Injectable()
 export class ApUtilityService {
 	private readonly logger: Logger;
@@ -142,6 +148,12 @@ export class ApUtilityService {
 		if (!valueId) {
 			// Exclude missing ID
 			this.logger.warn(`Excluding ${keyPath}${key} from object ${parentUri}: missing or invalid ID`);
+			return false;
+		}
+
+		// Exclude URLs too long to persist (the target columns are varchar(512)).
+		if (valueId.length > maxUrlLength) {
+			this.logger.warn(`Excluding ${keyPath}${key} from object ${parentUri}: ID is too long (${valueId.length} > ${maxUrlLength})`);
 			return false;
 		}
 

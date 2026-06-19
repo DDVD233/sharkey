@@ -31,6 +31,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</MkSelect>
 						</SearchMarker>
 
+						<SearchMarker :keywords="['auto', 'translate', 'language']">
+							<MkPreferenceContainer k="autoTranslate">
+								<MkSwitch v-model="autoTranslate">
+									<template #label><SearchLabel>{{ i18n.ts.autoTranslate }}</SearchLabel></template>
+									<template #caption><SearchKeyword>{{ i18n.ts._autoTranslate.description }}</SearchKeyword></template>
+								</MkSwitch>
+							</MkPreferenceContainer>
+						</SearchMarker>
+
 						<SearchMarker :keywords="['device', 'type', 'kind', 'smartphone', 'tablet', 'desktop']">
 							<MkRadios v-model="overridedDeviceKind">
 								<template #label><SearchLabel>{{ i18n.ts.overridedDeviceKind }}</SearchLabel></template>
@@ -284,6 +293,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<MkPreferenceContainer k="showClipButtonInNoteFooter">
 										<MkSwitch v-model="showClipButtonInNoteFooter">
 											<template #label><SearchLabel>{{ i18n.ts.showClipButtonInNoteFooter }}</SearchLabel></template>
+										</MkSwitch>
+									</MkPreferenceContainer>
+								</SearchMarker>
+
+								<SearchMarker :keywords="['footer', 'action', 'translation', 'translate', 'show']">
+									<MkPreferenceContainer k="showTranslationButtonInNoteFooter">
+										<MkSwitch v-model="showTranslationButtonInNoteFooter">
+											<template #label><SearchLabel>{{ i18n.ts.showTranslationButtonInNoteFooter }}</SearchLabel></template>
 										</MkSwitch>
 									</MkPreferenceContainer>
 								</SearchMarker>
@@ -988,7 +1005,9 @@ const serverDisconnectedBehavior = prefer.model('serverDisconnectedBehavior');
 const hemisphere = prefer.model('hemisphere');
 const showNoteActionsOnlyHover = prefer.model('showNoteActionsOnlyHover');
 const showClipButtonInNoteFooter = prefer.model('showClipButtonInNoteFooter');
+const showTranslationButtonInNoteFooter = prefer.model('showTranslationButtonInNoteFooter');
 const collapseRenotes = prefer.model('collapseRenotes');
+const autoTranslate = prefer.model('autoTranslate');
 const advancedMfm = prefer.model('advancedMfm');
 const showReactionsCount = prefer.model('showReactionsCount');
 const enableQuickAddMfmFunction = prefer.model('enableQuickAddMfmFunction');

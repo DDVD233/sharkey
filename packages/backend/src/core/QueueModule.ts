@@ -19,6 +19,7 @@ import {
 	ScheduleNotePostJobData,
 	SpamCheckJobData,
 	CsamCheckJobData,
+	EmbedNoteJobData,
 } from '../queue/types.js';
 import type { Provider } from '@nestjs/common';
 
@@ -34,6 +35,7 @@ export type SystemWebhookDeliverQueue = Bull.Queue<SystemWebhookDeliverJobData>;
 export type ScheduleNotePostQueue = Bull.Queue<ScheduleNotePostJobData>;
 export type SpamCheckQueue = Bull.Queue<SpamCheckJobData>;
 export type CsamCheckQueue = Bull.Queue<CsamCheckJobData>;
+export type EmbedQueue = Bull.Queue<EmbedNoteJobData>;
 
 const $system: Provider = {
 	provide: 'queue:system',
@@ -107,6 +109,12 @@ const $csamCheck: Provider = {
 	inject: [DI.config],
 };
 
+const $embed: Provider = {
+	provide: 'queue:embed',
+	useFactory: (config: Config) => new Bull.Queue(QUEUE.EMBED, baseQueueOptions(config, QUEUE.EMBED)),
+	inject: [DI.config],
+};
+
 @Module({
 	imports: [
 	],
@@ -123,6 +131,7 @@ const $csamCheck: Provider = {
 		$scheduleNotePost,
 		$spamCheck,
 		$csamCheck,
+		$embed,
 	],
 	exports: [
 		$system,
@@ -137,6 +146,7 @@ const $csamCheck: Provider = {
 		$scheduleNotePost,
 		$spamCheck,
 		$csamCheck,
+		$embed,
 	],
 })
 export class QueueModule implements OnApplicationShutdown {
@@ -153,6 +163,7 @@ export class QueueModule implements OnApplicationShutdown {
 		@Inject('queue:scheduleNotePost') public scheduleNotePostQueue: ScheduleNotePostQueue,
 		@Inject('queue:spamCheck') public spamCheckQueue: SpamCheckQueue,
 		@Inject('queue:csamCheck') public csamCheckQueue: CsamCheckQueue,
+		@Inject('queue:embed') public embedQueue: EmbedQueue,
 	) {}
 
 	public async dispose(): Promise<void> {
@@ -172,6 +183,7 @@ export class QueueModule implements OnApplicationShutdown {
 			this.scheduleNotePostQueue.close(),
 			this.spamCheckQueue.close(),
 			this.csamCheckQueue.close(),
+			this.embedQueue.close(),
 		]);
 	}
 

@@ -65,6 +65,7 @@ describe('NoteCreateService', () => {
 			renoteUserHost: null,
 			renoteUserInstance: null,
 			processErrors: [],
+			lang: null,
 		};
 
 		const poll: IPoll = {
@@ -103,6 +104,7 @@ describe('NoteCreateService', () => {
 			isLink: false,
 			requestHeaders: null,
 			requestIp: null,
+			isQuarantined: false,
 		};
 
 		test('note without renote should not be Renote', () => {

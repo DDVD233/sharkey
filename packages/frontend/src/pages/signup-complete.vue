@@ -51,7 +51,8 @@ function submit() {
 				text: i18n.ts._signup.approvalPending,
 			});
 		}
-		return login(res.i, '/');
+		// New users land on the discovery feed (/explore) rather than an empty home timeline.
+		return login(res.i, '/explore');
 	}).catch(() => {
 		submitting.value = false;
 

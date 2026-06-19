@@ -34,6 +34,7 @@ export type Keys = (
 	'preferences' |
 	'latestPreferencesUpdate' |
 	'hidePreferencesRestoreSuggestion' |
+	'autoTranslateDialogShown' |
 	`miux:${string}` |
 	`ui:folder:${string}` |
 	`themes:${string}` | // DEPRECATED

@@ -171,3 +171,7 @@ export type SpamCheckJobData = {
 export type CsamCheckJobData = {
 	fileId: MiDriveFile['id'];
 };
+
+export type EmbedNoteJobData = {
+	noteId: MiNote['id'];
+};

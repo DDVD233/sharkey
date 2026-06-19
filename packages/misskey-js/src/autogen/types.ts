@@ -693,6 +693,15 @@ export type paths = {
      */
     post: operations['admin___queue___stats'];
   };
+  '/admin/recommendation/rebuild-user-vectors': {
+    /**
+     * admin/recommendation/rebuild-user-vectors
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    post: operations['admin___recommendation___rebuild-user-vectors'];
+  };
   '/admin/reject-quotes': {
     /**
      * admin/reject-quotes
@@ -3435,6 +3444,15 @@ export type paths = {
      * **Credential required**: *Yes* / **Permission**: *write:reactions*
      */
     post: operations['notes___reactions___delete'];
+  };
+  '/notes/recommendations': {
+    /**
+     * notes/recommendations
+     * @description No description provided.
+     *
+     * **Credential required**: *No*
+     */
+    post: operations['notes___recommendations'];
   };
   '/notes/renotes': {
     /**
@@ -8219,6 +8237,12 @@ export type operations = {
           'application/json': components['schemas']['Error'];
         };
       };
+      /** @description Too many requests */
+      429: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
       /** @description Internal server error */
       500: {
         content: {
@@ -8324,6 +8348,12 @@ export type operations = {
       };
       /** @description I'm Ai */
       418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Too many requests */
+      429: {
         content: {
           'application/json': components['schemas']['Error'];
         };
@@ -9801,7 +9831,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck' | 'embed';
           /** @enum {string} */
           state: '*' | 'completed' | 'wait' | 'active' | 'paused' | 'prioritized' | 'delayed' | 'failed';
         };
@@ -9947,7 +9977,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck' | 'embed';
           state: ('active' | 'paused' | 'wait' | 'delayed' | 'completed' | 'failed')[];
           search?: string;
         };
@@ -10001,7 +10031,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck' | 'embed';
         };
       };
     };
@@ -10053,7 +10083,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck' | 'embed';
         };
       };
     };
@@ -10149,7 +10179,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck' | 'embed';
           jobId: string;
         };
       };
@@ -10202,7 +10232,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck' | 'embed';
           jobId: string;
         };
       };
@@ -10255,7 +10285,7 @@ export type operations = {
       content: {
         'application/json': {
           /** @enum {string} */
-          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck';
+          queue: 'system' | 'endedPollNotification' | 'deliver' | 'inbox' | 'db' | 'relationship' | 'objectStorage' | 'userWebhookDeliver' | 'systemWebhookDeliver' | 'scheduleNotePost' | 'spamCheck' | 'csamCheck' | 'embed';
           jobId: string;
         };
       };
@@ -10313,6 +10343,55 @@ export type operations = {
             inbox: components['schemas']['QueueCount'];
             db: components['schemas']['QueueCount'];
             objectStorage: components['schemas']['QueueCount'];
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/recommendation/rebuild-user-vectors
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+   */
+  'admin___recommendation___rebuild-user-vectors': {
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            /** @description Number of user interest vectors recomputed. */
+            count: number;
           };
         };
       };
@@ -28282,6 +28361,71 @@ export type operations = {
       /** @description OK (without any results) */
       204: {
         content: never;
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Too many requests */
+      429: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * notes/recommendations
+   * @description No description provided.
+   *
+   * **Credential required**: *No*
+   */
+  notes___recommendations: {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 10 */
+          limit?: number;
+          /** @default 0 */
+          offset?: number;
+          /** @default false */
+          refresh?: boolean;
+          lang?: string | null;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': components['schemas']['Note'][];
+        };
       };
       /** @description Client error */
       400: {

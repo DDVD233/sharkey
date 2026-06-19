@@ -34,6 +34,7 @@ function generateDummyUser(override?: Partial<MiUser>): MiUser {
 		movedAt: null,
 		alsoKnownAs: null,
 		notesCount: 30,
+		inferredLang: null,
 		avatarId: null,
 		avatar: null,
 		bannerId: null,
@@ -144,6 +145,7 @@ const dummyUser2 = generateDummyUser({
 	followersCount: 40,
 	followingCount: 50,
 	notesCount: 900,
+	inferredLang: null,
 });
 const dummyUser3 = generateDummyUser({
 	id: 'dummy-user-3',
@@ -156,6 +158,7 @@ const dummyUser3 = generateDummyUser({
 	followersCount: 60,
 	followingCount: 70,
 	notesCount: 15900,
+	inferredLang: null,
 });
 
 @Injectable()

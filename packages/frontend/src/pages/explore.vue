@@ -5,7 +5,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div v-if="tab === 'featured'">
+	<div v-if="tab === 'recommendations'">
+		<XRecommendations ref="recommendationsEl"/>
+	</div>
+	<div v-else-if="tab === 'featured'">
 		<XFeatured/>
 	</div>
 	<div v-else-if="tab === 'users'">
@@ -19,6 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, watch, ref, useTemplateRef } from 'vue';
+import XRecommendations from './explore.recommendations.vue';
 import XFeatured from './explore.featured.vue';
 import XUsers from './explore.users.vue';
 import XRoles from './explore.roles.vue';
@@ -29,11 +33,12 @@ const props = withDefaults(defineProps<{
 	tag?: string;
 	initialTab?: string;
 }>(), {
-	initialTab: 'featured',
+	initialTab: 'recommendations',
 });
 
 const tab = ref(props.initialTab);
 const tagsEl = useTemplateRef('tagsEl');
+const recommendationsEl = useTemplateRef('recommendationsEl');
 
 watch(() => props.tag, () => {
 	if (tagsEl.value) tagsEl.value.toggleContent(props.tag == null);
@@ -42,6 +47,12 @@ watch(() => props.tag, () => {
 const headerActions = computed(() => []);
 
 const headerTabs = computed(() => [{
+	key: 'recommendations',
+	icon: 'ti ti-sparkles',
+	title: i18n.ts.recommendations,
+	// Clicking the tab scrolls to top (default); also refresh the feed so it re-ranks with newest content.
+	onClick: () => { recommendationsEl.value?.reload(); },
+}, {
 	key: 'featured',
 	icon: 'ti ti-bolt',
 	title: i18n.ts.featured,

@@ -61,7 +61,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" :class="$style.noteFooterButton" class="_button" @click.stop="clip()">
 					<i class="ti ti-paperclip"></i>
 				</button>
-				<button v-if="policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="$style.noteFooterButton" :style="showTranslation ? 'color: var(--MI_THEME-accent) !important;' : ''" :disabled="translating" @click.stop="translate()">
+				<button v-if="prefer.s.showTranslationButtonInNoteFooter && policies.canUseTranslator && instance.translatorAvailable" ref="translationButton" class="_button" :class="$style.noteFooterButton" :style="showTranslation ? 'color: var(--MI_THEME-accent) !important;' : ''" :disabled="translating" @click.stop="translate()">
 					<i class="ti ti-language-hiragana"></i>
 				</button>
 				<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @click.stop="menu()">
@@ -77,7 +77,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, inject, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { computeMergedCw } from '@@/js/compute-merged-cw.js';
 import * as config from '@@/js/config.js';
@@ -99,7 +99,7 @@ import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import { claimAchievement } from '@/utility/achievements.js';
-import { getNoteClipMenu, getNoteMenu, translateNote } from '@/utility/get-note-menu.js';
+import { getNoteClipMenu, getNoteMenu, translateNoteWithPrompt, maybeAutoTranslateNote } from '@/utility/get-note-menu.js';
 import { boostMenuItems, computeRenoteTooltip } from '@/utility/boost-quote.js';
 import { prefer } from '@/preferences.js';
 import { useNoteCapture } from '@/use/use-note-capture.js';
@@ -133,6 +133,9 @@ const isDeleted = ref(false);
 watch(translation, (value) => {
 	if (value != null) showTranslation.value = true;
 });
+
+// Auto-translate on load when enabled and the note isn't in the user's language (non-blocking).
+onMounted(() => maybeAutoTranslateNote(appearNote.value, translation, translating));
 const renoted = ref(false);
 const reactButton = shallowRef<HTMLElement>();
 const clipButton = useTemplateRef('clipButton');
@@ -365,7 +368,7 @@ async function translate() {
 	// Fetch (or re-fetch after a previous failure) and reveal the translation in-place.
 	showTranslation.value = true;
 	translation.value = null;
-	await translateNote(appearNote.value.id, translation, translating);
+	await translateNoteWithPrompt(appearNote.value.id, translation, translating);
 }
 </script>
 

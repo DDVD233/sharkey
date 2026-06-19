@@ -77,6 +77,25 @@ type Source = {
 		timeout?: number;
 		pythonPath?: string;
 	};
+	langDetection?: {
+		minConfidence?: number;
+		minConfidenceUntrusted?: number;
+		trustedLangs?: string[];
+		cjkCrossCorrect?: boolean;
+		minNotesForInferred?: number;
+	};
+	recommendation?: {
+		enabled?: boolean;
+		embeddingUrl?: string;
+		embeddingModel?: string;
+		embeddingDim?: number;
+		embeddingTimeout?: number;
+		milvusUrl?: string;
+		milvusToken?: string;
+		milvusCollectionPrefix?: string;
+		supportedLangs?: string[];
+		vectorRetentionDays?: number;
+	};
 	sentryForBackend?: { options: Partial<Sentry.NodeOptions>; enableNodeProfiling: boolean; };
 	sentryForFrontend?: {
 		options: Partial<SentryVue.BrowserOptions> & { dsn: string };
@@ -262,6 +281,25 @@ export type Config = {
 		port?: number;
 		timeout?: number;
 		pythonPath?: string;
+	} | undefined;
+	langDetection: {
+		minConfidence?: number;
+		minConfidenceUntrusted?: number;
+		trustedLangs?: string[];
+		cjkCrossCorrect?: boolean;
+		minNotesForInferred?: number;
+	} | undefined;
+	recommendation: {
+		enabled?: boolean;
+		embeddingUrl?: string;
+		embeddingModel?: string;
+		embeddingDim?: number;
+		embeddingTimeout?: number;
+		milvusUrl?: string;
+		milvusToken?: string;
+		milvusCollectionPrefix?: string;
+		supportedLangs?: string[];
+		vectorRetentionDays?: number;
 	} | undefined;
 	proxy: string | undefined;
 	proxySmtp: string | undefined;
@@ -455,6 +493,8 @@ export function loadConfig(): Config {
 		fulltextSearch: config.fulltextSearch,
 		meilisearch: config.meilisearch,
 		serviceServer: config.serviceServer,
+		langDetection: config.langDetection,
+		recommendation: config.recommendation,
 		redis,
 		redisForPubsub: config.redisForPubsub ? convertRedisOptions(config.redisForPubsub, host) : redis,
 		redisForJobQueue: config.redisForJobQueue ? convertRedisOptions(config.redisForJobQueue, host) : redis,
@@ -667,6 +707,8 @@ function applyEnvOverrides(config: Source) {
 	_apply_top(['fulltextSearch', 'provider']);
 	_apply_top(['meilisearch', ['host', 'port', 'apiKey', 'ssl', 'index', 'scope']]);
 	_apply_top(['serviceServer', ['enabled', 'host', 'port', 'timeout', 'pythonPath']]);
+	_apply_top(['langDetection', ['minConfidence', 'minConfidenceUntrusted', 'trustedLangs', 'cjkCrossCorrect', 'minNotesForInferred']]);
+	_apply_top(['recommendation', ['enabled', 'embeddingUrl', 'embeddingModel', 'embeddingDim', 'embeddingTimeout', 'milvusUrl', 'milvusToken', 'milvusCollectionPrefix', 'vectorRetentionDays']]);
 	_apply_top([['sentryForFrontend', 'sentryForBackend'], 'options', ['dsn', 'profileSampleRate', 'serverName', 'includeLocalVariables', 'proxy', 'keepAlive', 'caCerts']]);
 	_apply_top(['sentryForBackend', 'enableNodeProfiling']);
 	_apply_top(['sentryForFrontend', 'vueIntegration', ['attachProps', 'attachErrorHandler']]);

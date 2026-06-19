@@ -77,6 +77,10 @@ export * as 'admin/meta' from './endpoints/admin/meta.js';
 export * as 'admin/nsfw-user' from './endpoints/admin/nsfw-user.js';
 export * as 'admin/promo/create' from './endpoints/admin/promo/create.js';
 export * as 'admin/queue/clear' from './endpoints/admin/queue/clear.js';
+export * as 'admin/recommendation/backfill-history' from './endpoints/admin/recommendation/backfill-history.js';
+export * as 'admin/recommendation/prefill' from './endpoints/admin/recommendation/prefill.js';
+export * as 'admin/recommendation/stats' from './endpoints/admin/recommendation/stats.js';
+export * as 'admin/recommendation/rebuild-user-vectors' from './endpoints/admin/recommendation/rebuild-user-vectors.js';
 export * as 'admin/queue/deliver-delayed' from './endpoints/admin/queue/deliver-delayed.js';
 export * as 'admin/queue/inbox-delayed' from './endpoints/admin/queue/inbox-delayed.js';
 export * as 'admin/queue/retry-job' from './endpoints/admin/queue/retry-job.js';
@@ -341,6 +345,7 @@ export * as 'notes/polls/recommendation' from './endpoints/notes/polls/recommend
 export * as 'notes/polls/refresh' from './endpoints/notes/polls/refresh.js';
 export * as 'notes/polls/vote' from './endpoints/notes/polls/vote.js';
 export * as 'notes/reactions' from './endpoints/notes/reactions.js';
+export * as 'notes/recommendations' from './endpoints/notes/recommendations.js';
 export * as 'notes/reactions/create' from './endpoints/notes/reactions/create.js';
 export * as 'notes/reactions/delete' from './endpoints/notes/reactions/delete.js';
 export * as 'notes/renotes' from './endpoints/notes/renotes.js';

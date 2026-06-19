@@ -51,6 +51,9 @@ import { NoteEditService } from './NoteEditService.js';
 import { NoteDeleteService } from './NoteDeleteService.js';
 import { SpamFilterService } from './SpamFilterService.js';
 import { LanguageDetectionService } from './LanguageDetectionService.js';
+import { EmbeddingService } from './EmbeddingService.js';
+import { MilvusService } from './MilvusService.js';
+import { RecommendationService } from './RecommendationService.js';
 import { CsamFilterService } from './CsamFilterService.js';
 import { ModerationReportService } from './ModerationReportService.js';
 import { LatestNoteService } from './LatestNoteService.js';
@@ -201,6 +204,9 @@ const $NoteEditService: Provider = { provide: 'NoteEditService', useExisting: No
 const $NoteDeleteService: Provider = { provide: 'NoteDeleteService', useExisting: NoteDeleteService };
 const $SpamFilterService: Provider = { provide: 'SpamFilterService', useExisting: SpamFilterService };
 const $LanguageDetectionService: Provider = { provide: 'LanguageDetectionService', useExisting: LanguageDetectionService };
+const $EmbeddingService: Provider = { provide: 'EmbeddingService', useExisting: EmbeddingService };
+const $MilvusService: Provider = { provide: 'MilvusService', useExisting: MilvusService };
+const $RecommendationService: Provider = { provide: 'RecommendationService', useExisting: RecommendationService };
 const $CsamFilterService: Provider = { provide: 'CsamFilterService', useExisting: CsamFilterService };
 const $ModerationReportService: Provider = { provide: 'ModerationReportService', useExisting: ModerationReportService };
 const $LatestNoteService: Provider = { provide: 'LatestNoteService', useExisting: LatestNoteService };
@@ -365,6 +371,9 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		NoteDeleteService,
 		SpamFilterService,
 		LanguageDetectionService,
+		EmbeddingService,
+		MilvusService,
+		RecommendationService,
 		CsamFilterService,
 		ModerationReportService,
 		LatestNoteService,
@@ -525,6 +534,9 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$NoteDeleteService,
 		$SpamFilterService,
 		$LanguageDetectionService,
+		$EmbeddingService,
+		$MilvusService,
+		$RecommendationService,
 		$CsamFilterService,
 		$ModerationReportService,
 		$LatestNoteService,
@@ -686,6 +698,9 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		NoteDeleteService,
 		SpamFilterService,
 		LanguageDetectionService,
+		EmbeddingService,
+		MilvusService,
+		RecommendationService,
 		CsamFilterService,
 		ModerationReportService,
 		LatestNoteService,
@@ -845,6 +860,9 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$NoteDeleteService,
 		$SpamFilterService,
 		$LanguageDetectionService,
+		$EmbeddingService,
+		$MilvusService,
+		$RecommendationService,
 		$CsamFilterService,
 		$ModerationReportService,
 		$LatestNoteService,

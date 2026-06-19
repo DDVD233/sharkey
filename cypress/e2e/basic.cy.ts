@@ -179,7 +179,11 @@ describe('After user signed in', () => {
 
 	it('account setup wizard', () => {
 		// 表示に時間がかかるのでデフォルト秒数だとタイムアウトする
+		// 言語選択（デフォルトのまま進むのでリロードは発生しない）
 		cy.get('[data-cy-user-setup-continue]', { timeout: 30000 }).click();
+
+		// ようこそ画面
+		cy.get('[data-cy-user-setup-continue]').click();
 
 		cy.get('[data-cy-user-setup-user-name] input').type('ありす');
 		cy.get('[data-cy-user-setup-user-description] textarea').type('ほげ');

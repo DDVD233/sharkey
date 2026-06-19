@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import ms from 'ms';
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { EmojisRepository } from '@/models/_.js';
@@ -19,6 +20,12 @@ export const meta = {
 	requireCredential: true,
 	requiredRolePolicy: 'canManageCustomEmojis',
 	kind: 'write:admin:emoji',
+
+	// Copying emoji is admin-only, so allow large batch imports without rate limiting.
+	limit: {
+		duration: ms('1day'),
+		max: 10000,
+	},
 
 	errors: {
 		noSuchEmoji: {

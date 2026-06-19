@@ -46,6 +46,8 @@ import { RelationshipProcessorService } from './processors/RelationshipProcessor
 import { ScheduleNotePostProcessorService } from './processors/ScheduleNotePostProcessorService.js';
 import { SpamCheckProcessorService } from './processors/SpamCheckProcessorService.js';
 import { CsamCheckProcessorService } from './processors/CsamCheckProcessorService.js';
+import { EmbedNoteProcessorService } from './processors/EmbedNoteProcessorService.js';
+import { EmbeddingBackfillProcessorService } from './processors/EmbeddingBackfillProcessorService.js';
 
 @Module({
 	imports: [
@@ -94,6 +96,8 @@ import { CsamCheckProcessorService } from './processors/CsamCheckProcessorServic
 		ScheduleNotePostProcessorService,
 		SpamCheckProcessorService,
 		CsamCheckProcessorService,
+		EmbedNoteProcessorService,
+		EmbeddingBackfillProcessorService,
 	],
 	exports: [
 		QueueProcessorService,

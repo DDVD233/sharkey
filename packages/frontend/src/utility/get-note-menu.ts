@@ -346,7 +346,7 @@ export function getNoteMenu(props: {
 			menuItems.push({
 				icon: 'ti ti-language-hiragana',
 				text: i18n.ts.translate,
-				action: () => translateNote(appearNote.id, props.translation, props.translating),
+				action: () => translateNoteWithPrompt(appearNote.id, props.translation, props.translating),
 			});
 		}
 
@@ -502,7 +502,7 @@ export function getNoteMenu(props: {
 			menuItems.push({
 				icon: 'ti ti-language-hiragana',
 				text: i18n.ts.translate,
-				action: () => translateNote(appearNote.id, props.translation, props.translating),
+				action: () => translateNoteWithPrompt(appearNote.id, props.translation, props.translating),
 			});
 		}
 	}
@@ -710,4 +710,52 @@ export async function translateNote(noteId: string, translation: Ref<Misskey.ent
 	} finally {
 		translating.value = false;
 	}
+}
+
+// Primary language subtag of the UI language (e.g. 'en-US' -> 'en', 'zh-CN'/'zh-TW' -> 'zh').
+function uiLangPrimary(): string {
+	return (miLocalStorage.getItem('lang') ?? navigator.language).split('-')[0].toLowerCase();
+}
+
+// Offer the auto-translate opt-in exactly once, the first time the user manually translates a note.
+async function maybeOfferAutoTranslate(): Promise<void> {
+	if (miLocalStorage.getItem('autoTranslateDialogShown') === 'true') return;
+	miLocalStorage.setItem('autoTranslateDialogShown', 'true');
+
+	const { canceled } = await os.confirm({
+		type: 'question',
+		title: i18n.ts.autoTranslate,
+		text: i18n.ts._autoTranslate.prompt,
+		okText: i18n.ts._autoTranslate.tryIt,
+		cancelText: i18n.ts._autoTranslate.nah,
+	});
+	if (canceled) return;
+
+	prefer.commit('autoTranslate', true);
+	await os.alert({
+		type: 'success',
+		title: i18n.ts.autoTranslate,
+		text: i18n.ts._autoTranslate.enabledInfo,
+	});
+}
+
+// Manual (menu) translate: translate, then offer the one-time auto-translate opt-in.
+export async function translateNoteWithPrompt(noteId: string, translation: Ref<Misskey.entities.NotesTranslateResponse | false | null>, translating: Ref<boolean>): Promise<void> {
+	await translateNote(noteId, translation, translating);
+	await maybeOfferAutoTranslate();
+}
+
+/**
+ * When auto-translate is enabled, translate a note that isn't in the user's language.
+ * Best-effort and non-blocking. Skipped when: the feature is off, the note has no detected
+ * language (lang is null), or the detected language matches the UI language. zh-CN and zh-TW
+ * share the 'zh' code, so they are treated as the same language and never cross-translated.
+ */
+export function maybeAutoTranslateNote(note: Misskey.entities.Note, translation: Ref<Misskey.entities.NotesTranslateResponse | false | null>, translating: Ref<boolean>): void {
+	if (!prefer.s.autoTranslate) return;
+	if (translation.value || translating.value) return;
+	if (!instance.translatorAvailable || !policies.value.canUseTranslator) return;
+	if (!note.lang) return; // no detected language -> don't translate
+	if (note.lang.toLowerCase() === uiLangPrimary()) return; // already in the user's language
+	void translateNote(note.id, translation, translating);
 }

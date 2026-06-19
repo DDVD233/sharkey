@@ -57,6 +57,7 @@ import { isUserRelated } from '@/misc/is-user-related.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { LatestNoteService } from '@/core/LatestNoteService.js';
 import { LanguageDetectionService } from '@/core/LanguageDetectionService.js';
+import { RecommendationService } from '@/core/RecommendationService.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { CacheService } from '@/core/CacheService.js';
 
@@ -225,6 +226,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		private cacheService: CacheService,
 		private latestNoteService: LatestNoteService,
 		private languageDetectionService: LanguageDetectionService,
+		private recommendationService: RecommendationService,
 	) {
 		this.updateNotesCountQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseNotesCount, this.performUpdateNotesCount);
 	}
@@ -448,6 +450,27 @@ export class NoteCreateService implements OnApplicationShutdown {
 				this.queueService.createSpamCheckJob(note.id).catch(() => { /* ignore enqueue errors */ });
 			}
 		}
+		// Recommendation: embed public text notes (local + remote) for content retrieval, and record
+		// the author's positive engagement (reply / boost) with the target note. Engagement is only
+		// tracked for local users, since recommendations are served to them. All best-effort.
+		if (note.visibility === 'public' && note.text != null && note.text.trim().length > 0) {
+			this.queueService.createEmbedNoteJob(note.id).catch(() => { /* best-effort */ });
+		}
+		if (user.host == null) {
+			if (data.reply) this.recommendationService.onPositiveEngagement(user.id, data.reply, 'reply').catch(() => { /* best-effort */ });
+			if (data.renote) this.recommendationService.onPositiveEngagement(user.id, data.renote, 'renote').catch(() => { /* best-effort */ });
+			// The user's own original posts/quotes express their interests too (replies are already
+			// captured above as engagement with the parent note).
+			if (note.replyId == null && note.text != null && note.text.trim().length > 0) {
+				this.recommendationService.onPositiveEngagement(user.id, note, 'post').catch(() => { /* best-effort */ });
+			}
+		}
+
+		// Keep the author's inferred language fresh between nightly rebuilds (local + remote).
+		// Only when this note added a language signal. Best-effort, never blocks the response.
+		if (note.lang != null) {
+			this.languageDetectionService.updateUserInferredLang(user.id).catch(() => { /* best-effort */ });
+		}
 
 		setImmediate('post created', { signal: this.#shutdownController.signal }).then(
 			() => this.postNoteCreated(note, user, data, silent, tags!, mentionedUsers!),
@@ -469,7 +492,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private async insertNote(user: { id: MiUser['id']; host: MiUser['host']; }, data: Option, tags: string[], emojis: string[], mentionedUsers: MinimumUser[]) {
+	private async insertNote(user: { id: MiUser['id']; host: MiUser['host']; inferredLang?: MiUser['inferredLang']; }, data: Option, tags: string[], emojis: string[], mentionedUsers: MinimumUser[]) {
 		const insert = new MiNote({
 			id: this.idService.gen(data.createdAt?.getTime()),
 			fileIds: data.files ? data.files.map(file => file.id) : [],
@@ -519,9 +542,11 @@ export class NoteCreateService implements OnApplicationShutdown {
 		if (data.uri != null) insert.uri = data.uri;
 		if (data.url != null) insert.url = data.url;
 
-		// Detect the note's language synchronously (local + remote). Best-effort: returns null
-		// when the sidecar is disabled/unavailable, so it never blocks note creation.
-		insert.lang = await this.languageDetectionService.detectLanguage(insert.text);
+		// Detect the note's language synchronously (local + remote) and resolve it against the
+		// author's inferred language (low-confidence / untrusted / cross-CJK detections fall back
+		// to it). Best-effort: returns null when the sidecar is disabled/unavailable, so it never
+		// blocks note creation.
+		insert.lang = await this.languageDetectionService.resolveLanguageForNote(insert.text, user.inferredLang ?? null);
 
 		// Append mentions data
 		if (mentionedUsers.length > 0) {

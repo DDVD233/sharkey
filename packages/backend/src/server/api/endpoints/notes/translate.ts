@@ -15,6 +15,7 @@ import { DI } from '@/di-symbols.js';
 import { CacheService } from '@/core/CacheService.js';
 import { hasText } from '@/models/Note.js';
 import { ApiLoggerService } from '@/server/api/ApiLoggerService.js';
+import { LanguageDetectionService } from '@/core/LanguageDetectionService.js';
 import { ApiError } from '../../error.js';
 
 // Default system prompt used for LLM translation when the admin has not configured one.
@@ -63,16 +64,19 @@ export const meta = {
 			id: 'ea29f2ca-c368-43b3-aaf1-5ac3e74bbe5d',
 		},
 		translationFailed: {
-			message: 'Failed to translate note. Please try again later or contact an administrator for assistance.',
+			message: 'Translation failed.',
 			code: 'TRANSLATION_FAILED',
 			id: '4e7a1a4f-521c-4ba2-b10a-69e5e2987b2f',
 		},
 	},
 
-	// 10 calls per 5 seconds
+	// Effectively unlimited. Auto-translate fires one call per foreign-language note, so a timeline
+	// load bursts dozens at once. NB: omitting `limit` does NOT disable rate limiting — the API
+	// falls back to a default 10/sec cap (see ApiCallService) — so we set a very high explicit limit.
+	// Results are cached per note+lang, so repeat views don't re-hit the model.
 	limit: {
-		duration: 1000 * 5,
-		max: 10,
+		duration: 1000 * 60,
+		max: 100000,
 	},
 } as const;
 
@@ -97,6 +101,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private roleService: RoleService,
 		private readonly cacheService: CacheService,
 		private readonly loggerService: ApiLoggerService,
+		private readonly languageDetectionService: LanguageDetectionService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const note = await this.getterService.getNote(ps.noteId).catch(err => {
@@ -268,56 +273,88 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// The note text is sent as a separate user message, wrapped in a short instruction.
-			const userPrompt = `Translate to ${targetLangName} (output translation only):\n\n${maskedText}`;
+			// Emphasize the target language: the model sometimes paraphrases the source instead of
+			// translating, especially on short text.
+			const userPrompt = `Translate the text below into ${targetLangName}. Your ENTIRE output must be written in ${targetLangName} — never reply in the original language — and must contain only the translation, nothing else:\n\n${maskedText}`;
 
-			// Use plain fetch (not httpRequestService): the LLM server is an admin-configured
-			// endpoint that may be plain http and/or a private address, both of which the
-			// federation HTTP client rejects.
-			const res = await fetch(this.resolveLlmEndpoint(baseUrl), {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Accept: 'application/json, */*',
-					...(this.serverSettings.llmTranslateKey ? { Authorization: `Bearer ${this.serverSettings.llmTranslateKey}` } : {}),
-				},
-				body: JSON.stringify({
-					model: this.serverSettings.llmTranslateModel ?? '',
-					messages: [
-						{ role: 'system', content: systemPrompt },
-						{ role: 'user', content: userPrompt },
-					],
-					temperature: 0.3,
-					stream: false,
-					// Qwen3.5 is a reasoning model; disable thinking so it returns only the translation
-					// (otherwise the <think> block leaks into the output).
-					chat_template_kwargs: { enable_thinking: false },
-				}),
-				signal: AbortSignal.timeout(this.serverSettings.translationTimeout),
+			// Build the request once; only the network call is retried.
+			const endpoint = this.resolveLlmEndpoint(baseUrl);
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json',
+				Accept: 'application/json, */*',
+				...(this.serverSettings.llmTranslateKey ? { Authorization: `Bearer ${this.serverSettings.llmTranslateKey}` } : {}),
+			};
+			const requestBody = JSON.stringify({
+				model: this.serverSettings.llmTranslateModel ?? '',
+				messages: [
+					{ role: 'system', content: systemPrompt },
+					{ role: 'user', content: userPrompt },
+				],
+				temperature: 0.3,
+				stream: false,
+				// Qwen3.5 is a reasoning model; disable thinking so it returns only the translation
+				// (otherwise the <think> block leaks into the output).
+				chat_template_kwargs: { enable_thinking: false },
 			});
 
-			const json = (await res.json()) as {
-				choices: { message: { content: string } }[];
-			};
+			// Under load the LLM server can time out or reject transiently; retry a few times with
+			// jittered backoff. Plain fetch (not httpRequestService): the endpoint is admin-configured
+			// and may be plain http and/or a private address, both of which the federation client rejects.
+			const maxAttempts = 3;
+			for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+				try {
+					const res = await fetch(endpoint, {
+						method: 'POST',
+						headers,
+						body: requestBody,
+						signal: AbortSignal.timeout(this.serverSettings.translationTimeout),
+					});
+					if (!res.ok) throw new Error(`LLM server returned HTTP ${res.status}`);
 
-			const rawText = json.choices?.[0]?.message?.content?.trim();
-			if (!rawText) return null;
+					const json = (await res.json()) as {
+						choices: { message: { content: string } }[];
+					};
 
-			// Restore the masked emoji shortcodes (⟦En⟧ → :shortcode:).
-			let text = rawText;
-			emojiShortcodes.forEach((shortcode, i) => {
-				text = text.split(`⟦E${i}⟧`).join(shortcode);
-			});
+					const rawText = json.choices?.[0]?.message?.content?.trim();
+					if (!rawText) throw new Error('empty translation');
 
-			// The LLM doesn't report a detected source language, so fall back to the language
-			// detected at note-ingest time (if any) for the "translated from" label.
-			const sourceLang = note.lang ? (languageNames.of(note.lang) ?? undefined) : undefined;
+					// Restore the masked emoji shortcodes (⟦En⟧ → :shortcode:).
+					let text = rawText;
+					emojiShortcodes.forEach((shortcode, i) => {
+						text = text.split(`⟦E${i}⟧`).join(shortcode);
+					});
 
-			return {
-				sourceLang,
-				text,
-			};
+					// Verify the output isn't still in the source language (the model sometimes
+					// paraphrases the original instead of translating). Only retry when lingua is
+					// CONFIDENT the output is the source language — short / same-script text (e.g.
+					// es↔en) is detected unreliably, and false rejections cause more failures than
+					// the occasional untranslated note. Only checked when the source is known.
+					if (note.lang && note.lang.toLowerCase() !== targetLang) {
+						const det = await this.languageDetectionService.detectLanguageDetailed(text);
+						if (det && det.lang === note.lang.toLowerCase() && det.confidence >= 0.85) {
+							throw new Error(`output still in source language (${det.lang} @ ${det.confidence.toFixed(2)})`);
+						}
+					}
+
+					// The LLM doesn't report a detected source language, so fall back to the language
+					// detected at note-ingest time (if any) for the "translated from" label.
+					const sourceLang = note.lang ? (languageNames.of(note.lang) ?? undefined) : undefined;
+
+					return {
+						sourceLang,
+						text,
+					};
+				} catch (e) {
+					if (attempt >= maxAttempts) throw e;
+					this.loggerService.logger.warn(`LLM translation attempt ${attempt}/${maxAttempts} failed, retrying: ${e instanceof Error ? e.message : String(e)}`);
+					// Backoff with jitter (3-6s): a timeline load can burst many translations at once,
+					// and the LLM legitimately needs a few seconds per request — give the queue time to drain.
+					await new Promise(resolve => setTimeout(resolve, 3000 + Math.floor(Math.random() * 3000)));
+				}
+			}
+			return null;
 		} catch (e) {
-			this.loggerService.logger.error('Unhandled error from LLM translation API: ', { e });
+			this.loggerService.logger.error(`LLM translation failed after retries: ${e instanceof Error ? e.message : String(e)}`);
 			return null;
 		}
 	}

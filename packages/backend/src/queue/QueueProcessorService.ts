@@ -12,6 +12,8 @@ import type Logger from '@/logger.js';
 import { bindThis } from '@/decorators.js';
 import { CheckModeratorsActivityProcessorService } from '@/queue/processors/CheckModeratorsActivityProcessorService.js';
 import { ModerationReportService } from '@/core/ModerationReportService.js';
+import { RecommendationService } from '@/core/RecommendationService.js';
+import { LanguageDetectionService } from '@/core/LanguageDetectionService.js';
 import { renderFullError } from '@/misc/render-full-error.js';
 import { UserWebhookDeliverProcessorService } from './processors/UserWebhookDeliverProcessorService.js';
 import { SystemWebhookDeliverProcessorService } from './processors/SystemWebhookDeliverProcessorService.js';
@@ -49,6 +51,8 @@ import { AggregateRetentionProcessorService } from './processors/AggregateRetent
 import { ScheduleNotePostProcessorService } from './processors/ScheduleNotePostProcessorService.js';
 import { SpamCheckProcessorService } from './processors/SpamCheckProcessorService.js';
 import { CsamCheckProcessorService } from './processors/CsamCheckProcessorService.js';
+import { EmbedNoteProcessorService } from './processors/EmbedNoteProcessorService.js';
+import { EmbeddingBackfillProcessorService } from './processors/EmbeddingBackfillProcessorService.js';
 import { QueueLoggerService } from './QueueLoggerService.js';
 import { QUEUE, baseWorkerOptions } from './const.js';
 import { ImportNotesProcessorService } from './processors/ImportNotesProcessorService.js';
@@ -96,6 +100,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 	private schedulerNotePostQueueWorker: Bull.Worker;
 	private spamCheckQueueWorker: Bull.Worker;
 	private csamCheckQueueWorker: Bull.Worker;
+	private embedQueueWorker: Bull.Worker;
 
 	constructor(
 		@Inject(DI.config)
@@ -140,7 +145,11 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		private scheduleNotePostProcessorService: ScheduleNotePostProcessorService,
 		private spamCheckProcessorService: SpamCheckProcessorService,
 		private csamCheckProcessorService: CsamCheckProcessorService,
+		private embedNoteProcessorService: EmbedNoteProcessorService,
+		private embeddingBackfillProcessorService: EmbeddingBackfillProcessorService,
 		private moderationReportService: ModerationReportService,
+		private recommendationService: RecommendationService,
+		private languageDetectionService: LanguageDetectionService,
 	) {
 		this.logger = this.queueLoggerService.logger;
 
@@ -158,6 +167,10 @@ export class QueueProcessorService implements OnApplicationShutdown {
 					case 'clean': return this.cleanProcessorService.process();
 					case 'spamReportEmail': return this.moderationReportService.sendSpamDigest();
 					case 'csamReportEmail': return this.moderationReportService.sendCsamDigest();
+					case 'embeddingBackfill': return this.embeddingBackfillProcessorService.process();
+					case 'rebuildUserInterestVectors': return this.recommendationService.recomputeAllUserVectors();
+					case 'rebuildUserInferredLangs': return this.languageDetectionService.recomputeActiveUserInferredLangs();
+					case 'rebuildCollaborativeModel': return Promise.resolve(); // placeholder for the future EASE/collaborative build
 					default: throw new Error(`unrecognized job type ${job.name} for system`);
 				}
 			};
@@ -624,6 +637,38 @@ export class QueueProcessorService implements OnApplicationShutdown {
 				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
 		}
 		//#endregion
+
+		//#region embed
+		{
+			const logger = this.logger.createSubLogger('embed');
+
+			this.embedQueueWorker = new Bull.Worker(QUEUE.EMBED, (job) => {
+				if (this.config.sentryForBackend) {
+					return Sentry.startSpan({ name: 'Queue: Embed' }, () => this.embedNoteProcessorService.process(job));
+				} else {
+					return this.embedNoteProcessorService.process(job);
+				}
+			}, {
+				...baseWorkerOptions(this.config, QUEUE.EMBED),
+				autorun: false,
+				concurrency: 16,
+			});
+			this.embedQueueWorker
+				.on('active', (job) => logger.debug(`active id=${job.id}`))
+				.on('completed', (job, result) => logger.debug(`completed(${result}) id=${job.id}`))
+				.on('failed', (job, err) => {
+					this.logError(logger, err, job);
+					if (config.sentryForBackend) {
+						Sentry.captureMessage(`Queue: Embed: ${job?.name ?? '?'}: ${err.name}: ${err.message}`, {
+							level: 'error',
+							extra: { job, err },
+						});
+					}
+				})
+				.on('error', (err: Error) => this.logError(logger, err))
+				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
+		}
+		//#endregion
 	}
 
 	private logError(logger: Logger, err: unknown, job?: Bull.Job | null): void {
@@ -667,6 +712,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			this.schedulerNotePostQueueWorker.run(),
 			this.spamCheckQueueWorker.run(),
 			this.csamCheckQueueWorker.run(),
+			this.embedQueueWorker.run(),
 		]);
 	}
 
@@ -685,6 +731,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			this.schedulerNotePostQueueWorker.close(),
 			this.spamCheckQueueWorker.close(),
 			this.csamCheckQueueWorker.close(),
+			this.embedQueueWorker.close(),
 		]);
 	}
 

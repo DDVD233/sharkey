@@ -837,6 +837,17 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    request<E extends 'admin/recommendation/rebuild-user-vectors', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:reject-quotes*
      */
     request<E extends 'admin/reject-quotes', P extends Endpoints[E]['req']>(
@@ -3975,6 +3986,17 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *write:reactions*
      */
     request<E extends 'notes/reactions/delete', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'notes/recommendations', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

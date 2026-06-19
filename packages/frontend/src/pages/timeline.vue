@@ -11,7 +11,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkInfo>
 		<MkPostForm v-if="prefer.r.showFixedPostForm.value" :class="$style.postForm" class="_panel" fixed style="margin-bottom: var(--MI-margin);"/>
 		<div v-if="queue > 0" :class="$style.new"><button class="_buttonPrimary" :class="$style.newButton" @click="top()">{{ i18n.ts.newNoteRecived }}</button></div>
+		<XRecommendations
+			v-if="src === 'recommendation'"
+			ref="recommendationComponent"
+			:class="$style.tl"
+		/>
 		<MkTimeline
+			v-else
 			ref="tlComponent"
 			:key="src + withRenotes + withBots + withReplies + onlyFiles + withSensitive"
 			:class="$style.tl"
@@ -35,6 +41,7 @@ import type { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import type { MenuItem } from '@/types/menu.js';
 import type { BasicTimelineType } from '@/timelines.js';
 import MkTimeline from '@/components/MkTimeline.vue';
+import XRecommendations from '@/pages/explore.recommendations.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkPostForm from '@/components/MkPostForm.vue';
 import * as os from '@/os.js';
@@ -53,9 +60,10 @@ import { useRouter } from '@/router';
 provide('shouldOmitHeaderTitle', true);
 
 const tlComponent = useTemplateRef('tlComponent');
+const recommendationComponent = useTemplateRef('recommendationComponent');
 const pageComponent = useTemplateRef('pageComponent');
 
-type TimelinePageSrc = BasicTimelineType | `list:${string}`;
+type TimelinePageSrc = BasicTimelineType | 'recommendation' | `list:${string}`;
 
 const queue = ref(0);
 const srcWhenNotSignin = ref<'local' | 'bubble' | 'global'>(isAvailableBasicTimeline('local') ? 'local' : 'global');
@@ -298,11 +306,29 @@ const headerActions = computed(() => {
 			icon: 'ti ti-refresh',
 			text: i18n.ts.reload,
 			handler: (ev: Event) => {
-				tlComponent.value?.reloadTimeline();
+				if (src.value === 'recommendation') {
+					recommendationComponent.value?.reload();
+				} else {
+					tlComponent.value?.reloadTimeline();
+				}
 			},
 		});
 	}
 	return tmp;
+});
+
+const basicTimelineTabs = computed(() => {
+	const tabs = availableBasicTimelines().map(tl => ({
+		key: tl,
+		title: i18n.ts._timelines[tl],
+		icon: basicTimelineIconClass(tl),
+		iconOnly: true,
+	} as Tab));
+	// Recommendation feed: to the right of "social", before "global". No description (it's icon-only).
+	const recTab: Tab = { key: 'recommendation', title: i18n.ts.recommendations, icon: 'ti ti-sparkles', iconOnly: true };
+	const socialIdx = tabs.findIndex(t => t.key === 'social');
+	tabs.splice(socialIdx >= 0 ? socialIdx + 1 : tabs.length, 0, recTab);
+	return tabs;
 });
 
 const headerTabs = computed(() => [...(prefer.r.pinnedUserLists.value.map(l => ({
@@ -310,12 +336,7 @@ const headerTabs = computed(() => [...(prefer.r.pinnedUserLists.value.map(l => (
 	title: l.name,
 	icon: 'ti ti-star',
 	iconOnly: true,
-}))), ...availableBasicTimelines().map(tl => ({
-	key: tl,
-	title: i18n.ts._timelines[tl],
-	icon: basicTimelineIconClass(tl),
-	iconOnly: true,
-})), {
+}))), ...basicTimelineTabs.value, {
 	icon: 'ph-user-check ph-bold ph-lg',
 	title: i18n.ts.following,
 	iconOnly: true,

@@ -42,7 +42,7 @@ withDefaults(defineProps<{
 	disableAutoLoad?: boolean;
 	displayLimit?: number;
 }>(), {
-	displayLimit: 50,
+	displayLimit: 200,
 });
 
 const pagingComponent = useTemplateRef('pagingComponent');

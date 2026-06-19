@@ -318,6 +318,9 @@ type AdminQueueShowJobRequest = operations['admin___queue___show-job']['requestB
 type AdminQueueStatsResponse = operations['admin___queue___stats']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AdminRecommendationRebuildUserVectorsResponse = operations['admin___recommendation___rebuild-user-vectors']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminRejectQuotesRequest = operations['admin___reject-quotes']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1606,6 +1609,7 @@ declare namespace entities {
         AdminQueueRetryJobRequest,
         AdminQueueShowJobRequest,
         AdminQueueStatsResponse,
+        AdminRecommendationRebuildUserVectorsResponse,
         AdminRejectQuotesRequest,
         AdminRelaysAddRequest,
         AdminRelaysAddResponse,
@@ -2040,6 +2044,8 @@ declare namespace entities {
         NotesReactionsResponse,
         NotesReactionsCreateRequest,
         NotesReactionsDeleteRequest,
+        NotesRecommendationsRequest,
+        NotesRecommendationsResponse,
         NotesRenotesRequest,
         NotesRenotesResponse,
         NotesRepliesRequest,
@@ -3229,6 +3235,12 @@ type NotesReactionsRequest = operations['notes___reactions']['requestBody']['con
 
 // @public (undocumented)
 type NotesReactionsResponse = operations['notes___reactions']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NotesRecommendationsRequest = operations['notes___recommendations']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NotesRecommendationsResponse = operations['notes___recommendations']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type NotesRenotesRequest = operations['notes___renotes']['requestBody']['content']['application/json'];

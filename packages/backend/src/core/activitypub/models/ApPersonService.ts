@@ -59,6 +59,8 @@ import type { IActor, ICollection, IObject, IOrderedCollection } from '../type.j
 
 const nameLength = 128;
 const summaryLength = 2048;
+// The MiUser.uri column is varchar(512).
+const uriLength = 512;
 
 type Field = Record<'name' | 'value', string>;
 
@@ -174,6 +176,10 @@ export class ApPersonService implements OnModuleInit, OnApplicationShutdown {
 		const idHost = this.utilityService.punyHostPSLDomain(parsedId);
 		if (idHost !== expectHost) {
 			throw new UnrecoverableError(`invalid Actor ${uri}: wrong host in id ${x.id} (got ${parsedId}, expected ${expectHost})`);
+		}
+		// The uri column is varchar(512); an over-long id can't be persisted, so reject the actor outright.
+		if (x.id.length > uriLength) {
+			throw new UnrecoverableError(`invalid Actor ${uri}: id is too long (${x.id.length} > ${uriLength})`);
 		}
 
 		// Validate inbox

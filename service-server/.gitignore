@@ -6,3 +6,14 @@
 # spam-eval: downloaded datasets + benchmark run outputs (reproducible, not source)
 eval/data/
 eval/out*/
+
+# backfill runtime state (per-deployment progress, not source)
+.backfill_lang.checkpoint
+.backfill_user_lang.checkpoint
+*.checkpoint
+*.checkpoint.tmp
+*.log
+
+# python bytecode cache
+__pycache__/
+*.pyc

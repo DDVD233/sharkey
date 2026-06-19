@@ -73,9 +73,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-show="mergedCW == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
 						<div :class="$style.text">
 							<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
-							<div v-if="showTranslation && (translating || (translation && translation.text != null))" :class="$style.translationHeader">
+							<div v-if="showTranslation && (translating || (translation && translation.text != null) || translation === false)" :class="$style.translationHeader">
 								<i class="ti ti-language-hiragana" :class="$style.translationIcon"></i>
 								<span v-if="translating">{{ i18n.ts.translating }}</span>
+								<template v-else-if="translation === false">
+									<span>{{ i18n.ts.translationFailed }}</span>
+									<button class="_textButton" :class="$style.showOriginal" @click.stop="translate()">{{ i18n.ts.retry }}</button>
+								</template>
 								<template v-else>
 									<I18n v-if="translation && translation.sourceLang" :src="i18n.ts.translatedFrom" tag="span">
 										<template #x><b>{{ translation.sourceLang }}</b></template>
@@ -106,7 +110,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 								:isAnim="allowAnim"
 								:isBlock="true"
 							/>
-							<div v-if="showTranslation && translation === false" :class="$style.translationFailed">{{ i18n.ts.translationFailed }}</div>
 							<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
 							<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
 						</div>
@@ -176,7 +179,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" :class="$style.footerButton" class="_button" @click.stop="clip()">
 						<i class="ti ti-paperclip"></i>
 					</button>
-					<button v-if="policies.canUseTranslator && instance.translatorAvailable" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: showTranslation }]" :disabled="translating" @click.stop="translate()">
+					<button v-if="prefer.s.showTranslationButtonInNoteFooter && policies.canUseTranslator && instance.translatorAvailable" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: showTranslation }]" :disabled="translating" @click.stop="translate()">
 						<i class="ti ti-language-hiragana"></i>
 					</button>
 					<button ref="menuButton" :class="$style.footerButton" class="_button" @click.stop="showMenu()">
@@ -235,7 +238,7 @@ import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
 import { checkAnimationFromMfm } from '@/utility/check-animated-mfm.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
-import { getAbuseNoteMenu, getCopyNoteLinkMenu, getNoteClipMenu, getNoteMenu, translateNote } from '@/utility/get-note-menu.js';
+import { getAbuseNoteMenu, getCopyNoteLinkMenu, getNoteClipMenu, getNoteMenu, translateNoteWithPrompt, maybeAutoTranslateNote } from '@/utility/get-note-menu.js';
 import { getNoteVersionsMenu } from '@/utility/get-note-versions-menu.js';
 import { useNoteCapture } from '@/use/use-note-capture.js';
 import { deepClone } from '@/utility/clone.js';
@@ -338,6 +341,9 @@ const showTranslation = ref(false);
 watch(translation, (value) => {
 	if (value != null) showTranslation.value = true;
 });
+
+// Auto-translate on load when enabled and the note isn't in the user's language (non-blocking).
+onMounted(() => maybeAutoTranslateNote(appearNote.value, translation, translating));
 const showTicker = (prefer.s.instanceTicker === 'always') || (prefer.s.instanceTicker === 'remote' && appearNote.value.user.instance);
 const canRenote = computed(() => ['public', 'home'].includes(appearNote.value.visibility) || (appearNote.value.visibility === 'followers' && appearNote.value.userId === $i?.id));
 const renoteCollapsed = ref(
@@ -823,7 +829,7 @@ async function translate() {
 	// Fetch (or re-fetch after a previous failure) and reveal the translation in-place.
 	showTranslation.value = true;
 	translation.value = null;
-	await translateNote(appearNote.value.id, translation, translating);
+	await translateNoteWithPrompt(appearNote.value.id, translation, translating);
 }
 
 function showRenoteMenu(): void {
@@ -918,7 +924,7 @@ function emitUpdReaction(emoji: string, delta: number) {
 <style lang="scss" module>
 .root {
 	position: relative;
-	font-size: 1.05em;
+	font-size: 1em;
 	overflow: clip;
 	contain: content;
 

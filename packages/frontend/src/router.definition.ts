@@ -452,6 +452,14 @@ export const ROUTE_DEF = [{
 		name: 'database',
 		component: page(() => import('@/pages/admin/database.vue')),
 	}, {
+		path: '/recommendation',
+		name: 'recommendation',
+		component: page(() => import('@/pages/admin/recommendation.vue')),
+	}, {
+		path: '/recommendation-analytics',
+		name: 'recommendationAnalytics',
+		component: page(() => import('@/pages/admin/recommendation-analytics.vue')),
+	}, {
 		path: '/abuses',
 		name: 'abuses',
 		component: page(() => import('@/pages/admin/abuses.vue')),

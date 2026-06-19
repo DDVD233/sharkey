@@ -26,6 +26,7 @@ import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
+import { RecommendationService } from '@/core/RecommendationService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
@@ -108,6 +109,7 @@ export class ReactionService {
 		private notificationService: NotificationService,
 		private perUserReactionsChart: PerUserReactionsChart,
 		private readonly cacheService: CacheService,
+		private readonly recommendationService: RecommendationService,
 	) {
 	}
 
@@ -248,6 +250,12 @@ export class ReactionService {
 
 		if (this.meta.enableChartsForRemoteUser || (user.host == null)) {
 			this.perUserReactionsChart.update(user, note);
+		}
+
+		// Recommendation: every reaction by a local user is a positive engagement, wherever it happens
+		// (home / explore / any timeline, any note visibility). Custom/emoji reactions count stronger.
+		if (user.host == null) {
+			this.recommendationService.onPositiveEngagement(user.id, note, 'reaction', { reaction }).catch(() => { /* best-effort */ });
 		}
 
 		// カスタム絵文字リアクションだったら絵文字情報も送る

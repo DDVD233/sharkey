@@ -1127,6 +1127,10 @@ export interface Locale extends ILocale {
      */
     "featured": string;
     /**
+     * おすすめ
+     */
+    "recommendations": string;
+    /**
      * ユーザー名かユーザーID
      */
     "usernameOrUserId": string;
@@ -3604,6 +3608,32 @@ export interface Locale extends ILocale {
      */
     "translate": string;
     /**
+     * 自動翻訳
+     */
+    "autoTranslate": string;
+    "_autoTranslate": {
+        /**
+         * 日本語以外の投稿を自動的に翻訳します。
+         */
+        "description": string;
+        /**
+         * 最近すごいローカルLLMを導入しました。日本語以外の投稿を自動翻訳してみませんか？
+         */
+        "prompt": string;
+        /**
+         * 試してみる！
+         */
+        "tryIt": string;
+        /**
+         * やめておく
+         */
+        "nah": string;
+        /**
+         * 今後、日本語以外の投稿は自動翻訳されます。設定 → 環境設定 → 全般 からオフにできます。
+         */
+        "enabledInfo": string;
+    };
+    /**
      * {x}から翻訳
      */
     "translatedFrom": ParameterizedString<"x">;
@@ -3615,6 +3645,10 @@ export interface Locale extends ILocale {
      * 翻訳中…
      */
     "translating": string;
+    /**
+     * Failed to translate note. Please try again later or contact an administrator for assistance.
+     */
+    "translationFailed": string;
     /**
      * アカウントの削除が進行中です
      */
@@ -12961,10 +12995,6 @@ export interface Locale extends ILocale {
      * Add "Translate" to note action menu
      */
     "showTranslationButtonInNoteFooter": string;
-    /**
-     * Failed to translate note. Please try again later or contact an administrator for assistance.
-     */
-    "translationFailed": string;
     "_processErrors": {
         /**
          * Unable to process quote. This post may be missing context.

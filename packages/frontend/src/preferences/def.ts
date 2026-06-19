@@ -249,6 +249,9 @@ export const PREF_DEF = {
 	showClipButtonInNoteFooter: {
 		default: false,
 	},
+	showTranslationButtonInNoteFooter: {
+		default: false,
+	},
 	reactionsDisplaySize: {
 		default: 'medium' as 'small' | 'medium' | 'large',
 	},
@@ -319,6 +322,9 @@ export const PREF_DEF = {
 	},
 	skipNoteRender: {
 		default: true,
+	},
+	autoTranslate: {
+		default: false,
 	},
 	showSoftWordMutedWord: {
 		default: false,

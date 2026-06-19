@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkPullToRefresh ref="prComponent" :refresher="() => reloadTimeline()">
-	<MkPagination v-if="paginationQuery" ref="pagingComponent" :pagination="paginationQuery" :displayLimit="50" @queue="emit('queue', $event)" @status="prComponent?.setDisabled($event)">
+	<MkPagination v-if="paginationQuery" ref="pagingComponent" :pagination="paginationQuery" :displayLimit="200" @queue="emit('queue', $event)" @status="prComponent?.setDisabled($event)">
 		<template #empty>
 			<div class="_fullinfo">
 				<img :src="infoImageUrl" draggable="false"/>

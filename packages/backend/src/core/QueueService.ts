@@ -39,6 +39,7 @@ import type {
 	ScheduleNotePostQueue,
 	SpamCheckQueue,
 	CsamCheckQueue,
+	EmbedQueue,
 } from './QueueModule.js';
 import type httpSignature from '@peertube/http-signature';
 import type * as Bull from 'bullmq';
@@ -57,6 +58,7 @@ export const QUEUE_TYPES = [
 	'scheduleNotePost',
 	'spamCheck',
 	'csamCheck',
+	'embed',
 ] as const;
 
 @Injectable()
@@ -77,6 +79,7 @@ export class QueueService {
 		@Inject('queue:scheduleNotePost') public ScheduleNotePostQueue: ScheduleNotePostQueue,
 		@Inject('queue:spamCheck') public spamCheckQueue: SpamCheckQueue,
 		@Inject('queue:csamCheck') public csamCheckQueue: CsamCheckQueue,
+		@Inject('queue:embed') public embedQueue: EmbedQueue,
 	) {
 		this.systemQueue.add('tickCharts', {
 		}, {
@@ -150,6 +153,38 @@ export class QueueService {
 			removeOnComplete: 10,
 			removeOnFail: 30,
 		});
+
+		this.systemQueue.add('embeddingBackfill', {
+		}, {
+			// hourly
+			repeat: { pattern: '15 * * * *' },
+			removeOnComplete: 10,
+			removeOnFail: 30,
+		});
+
+		this.systemQueue.add('rebuildUserInterestVectors', {
+		}, {
+			// daily at 03:00 — prebuild language-independent interest vectors for engaged users
+			repeat: { pattern: '0 3 * * *' },
+			removeOnComplete: 10,
+			removeOnFail: 30,
+		});
+
+		this.systemQueue.add('rebuildCollaborativeModel', {
+		}, {
+			// nightly at 04:00 — placeholder for the future EASE/collaborative model build
+			repeat: { pattern: '0 4 * * *' },
+			removeOnComplete: 10,
+			removeOnFail: 30,
+		});
+
+		this.systemQueue.add('rebuildUserInferredLangs', {
+		}, {
+			// daily at 02:00 — refresh inferred language for recently-active users
+			repeat: { pattern: '0 2 * * *' },
+			removeOnComplete: 10,
+			removeOnFail: 30,
+		});
 	}
 
 	@bindThis
@@ -171,6 +206,17 @@ export class QueueService {
 			removeOnFail: 100,
 			attempts: 2,
 			backoff: { type: 'exponential', delay: 10000 },
+		});
+	}
+
+	@bindThis
+	public createEmbedNoteJob(noteId: MiNote['id']) {
+		return this.embedQueue.add('embed', { noteId }, {
+			jobId: `embed:${noteId}`,
+			removeOnComplete: true,
+			removeOnFail: 100,
+			attempts: 3,
+			backoff: { type: 'exponential', delay: 30000 },
 		});
 	}
 
