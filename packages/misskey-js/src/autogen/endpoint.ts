@@ -95,7 +95,15 @@ import type {
 	AdminQueueRetryJobRequest,
 	AdminQueueShowJobRequest,
 	AdminQueueStatsResponse,
+	AdminRecommendationBackfillHistoryRequest,
+	AdminRecommendationBackfillHistoryResponse,
+	AdminRecommendationBackfillQualityRequest,
+	AdminRecommendationBackfillQualityResponse,
+	AdminRecommendationPrefillRequest,
+	AdminRecommendationPrefillResponse,
 	AdminRecommendationRebuildUserVectorsResponse,
+	AdminRecommendationStatsRequest,
+	AdminRecommendationStatsResponse,
 	AdminRejectQuotesRequest,
 	AdminRelaysAddRequest,
 	AdminRelaysAddResponse,
@@ -747,7 +755,11 @@ export type Endpoints = {
 	'admin/queue/retry-job': { req: AdminQueueRetryJobRequest; res: EmptyResponse };
 	'admin/queue/show-job': { req: AdminQueueShowJobRequest; res: EmptyResponse };
 	'admin/queue/stats': { req: EmptyRequest; res: AdminQueueStatsResponse };
+	'admin/recommendation/backfill-history': { req: AdminRecommendationBackfillHistoryRequest; res: AdminRecommendationBackfillHistoryResponse };
+	'admin/recommendation/backfill-quality': { req: AdminRecommendationBackfillQualityRequest; res: AdminRecommendationBackfillQualityResponse };
+	'admin/recommendation/prefill': { req: AdminRecommendationPrefillRequest; res: AdminRecommendationPrefillResponse };
 	'admin/recommendation/rebuild-user-vectors': { req: EmptyRequest; res: AdminRecommendationRebuildUserVectorsResponse };
+	'admin/recommendation/stats': { req: AdminRecommendationStatsRequest; res: AdminRecommendationStatsResponse };
 	'admin/reject-quotes': { req: AdminRejectQuotesRequest; res: EmptyResponse };
 	'admin/relays/add': { req: AdminRelaysAddRequest; res: AdminRelaysAddResponse };
 	'admin/relays/list': { req: EmptyRequest; res: AdminRelaysListResponse };

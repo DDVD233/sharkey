@@ -53,6 +53,7 @@ import { SpamFilterService } from './SpamFilterService.js';
 import { LanguageDetectionService } from './LanguageDetectionService.js';
 import { EmbeddingService } from './EmbeddingService.js';
 import { MilvusService } from './MilvusService.js';
+import { LlmQualityService } from './LlmQualityService.js';
 import { RecommendationService } from './RecommendationService.js';
 import { CsamFilterService } from './CsamFilterService.js';
 import { ModerationReportService } from './ModerationReportService.js';
@@ -206,6 +207,7 @@ const $SpamFilterService: Provider = { provide: 'SpamFilterService', useExisting
 const $LanguageDetectionService: Provider = { provide: 'LanguageDetectionService', useExisting: LanguageDetectionService };
 const $EmbeddingService: Provider = { provide: 'EmbeddingService', useExisting: EmbeddingService };
 const $MilvusService: Provider = { provide: 'MilvusService', useExisting: MilvusService };
+const $LlmQualityService: Provider = { provide: 'LlmQualityService', useExisting: LlmQualityService };
 const $RecommendationService: Provider = { provide: 'RecommendationService', useExisting: RecommendationService };
 const $CsamFilterService: Provider = { provide: 'CsamFilterService', useExisting: CsamFilterService };
 const $ModerationReportService: Provider = { provide: 'ModerationReportService', useExisting: ModerationReportService };
@@ -373,6 +375,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		LanguageDetectionService,
 		EmbeddingService,
 		MilvusService,
+		LlmQualityService,
 		RecommendationService,
 		CsamFilterService,
 		ModerationReportService,
@@ -536,6 +539,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$LanguageDetectionService,
 		$EmbeddingService,
 		$MilvusService,
+		$LlmQualityService,
 		$RecommendationService,
 		$CsamFilterService,
 		$ModerationReportService,
@@ -700,6 +704,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		LanguageDetectionService,
 		EmbeddingService,
 		MilvusService,
+		LlmQualityService,
 		RecommendationService,
 		CsamFilterService,
 		ModerationReportService,
@@ -862,6 +867,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$LanguageDetectionService,
 		$EmbeddingService,
 		$MilvusService,
+		$LlmQualityService,
 		$RecommendationService,
 		$CsamFilterService,
 		$ModerationReportService,

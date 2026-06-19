@@ -78,6 +78,7 @@ export * as 'admin/nsfw-user' from './endpoints/admin/nsfw-user.js';
 export * as 'admin/promo/create' from './endpoints/admin/promo/create.js';
 export * as 'admin/queue/clear' from './endpoints/admin/queue/clear.js';
 export * as 'admin/recommendation/backfill-history' from './endpoints/admin/recommendation/backfill-history.js';
+export * as 'admin/recommendation/backfill-quality' from './endpoints/admin/recommendation/backfill-quality.js';
 export * as 'admin/recommendation/prefill' from './endpoints/admin/recommendation/prefill.js';
 export * as 'admin/recommendation/stats' from './endpoints/admin/recommendation/stats.js';
 export * as 'admin/recommendation/rebuild-user-vectors' from './endpoints/admin/recommendation/rebuild-user-vectors.js';

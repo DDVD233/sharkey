@@ -115,6 +115,7 @@ export const paramDef = {
 		llmTranslateKey: { type: 'string', nullable: true },
 		llmTranslateModel: { type: 'string', nullable: true },
 		llmTranslatePrompt: { type: 'string', nullable: true },
+		llmQualityPrompt: { type: 'string', nullable: true },
 		enableEmail: { type: 'boolean' },
 		email: { type: 'string', nullable: true },
 		smtpSecure: { type: 'boolean' },
@@ -669,6 +670,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					set.llmTranslatePrompt = null;
 				} else {
 					set.llmTranslatePrompt = ps.llmTranslatePrompt;
+				}
+			}
+
+			if (ps.llmQualityPrompt !== undefined) {
+				if (ps.llmQualityPrompt === '') {
+					set.llmQualityPrompt = null;
+				} else {
+					set.llmQualityPrompt = ps.llmQualityPrompt;
 				}
 			}
 

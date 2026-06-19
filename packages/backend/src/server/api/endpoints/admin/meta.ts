@@ -489,6 +489,10 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			llmQualityPrompt: {
+				type: 'string',
+				optional: false, nullable: true,
+			},
 			enableSpamFilter: {
 				type: 'boolean',
 				optional: false, nullable: false,
@@ -766,6 +770,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				llmTranslateKey: instance.llmTranslateKey,
 				llmTranslateModel: instance.llmTranslateModel,
 				llmTranslatePrompt: instance.llmTranslatePrompt,
+				llmQualityPrompt: instance.llmQualityPrompt,
 				enableSpamFilter: instance.enableSpamFilter,
 				enableLlmTranslation: instance.enableLlmTranslation,
 				enableIpLogging: instance.enableIpLogging,

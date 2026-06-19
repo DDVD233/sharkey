@@ -66,21 +66,30 @@ export class EmbedNoteProcessorService {
 		// Embed the whole post: its text plus its images (actually downloaded + downscaled, sent as
 		// base64 — not as URLs). Notes WITH images become multimodal vectors and go to the 'mm'
 		// collection; text-only notes go to 'txt'. The two are never mixed (different vector subspaces).
+		// The same downscaled images are reused for quality scoring, so they're only downloaded once.
 		const images = await this.loadImageDataUrls(note.fileIds);
-		const modality = images.length > 0 ? 'mm' as const : 'txt' as const;
-		const vector = modality === 'mm'
-			? await this.embeddingService.embedMultimodal(note.text, images)
-			: await this.embeddingService.embedOne(note.text);
-		// A transient failure resolves to null while enabled — throw so BullMQ retries with backoff.
-		if (vector == null) throw new Error(`embedding returned no vector for note ${note.id}`);
 
-		await this.milvusService.upsertNoteVectors([{
-			noteId: note.id,
-			vector,
-			lang,
-			userId: note.userId,
-			createdAt: this.idService.parse(note.id).date.getTime(),
-		}], modality);
+		// qualityOnly jobs (quality backfill of already-embedded notes) skip the embedding step.
+		if (!job.data.qualityOnly) {
+			const modality = images.length > 0 ? 'mm' as const : 'txt' as const;
+			const vector = modality === 'mm'
+				? await this.embeddingService.embedMultimodal(note.text, images)
+				: await this.embeddingService.embedOne(note.text);
+			// A transient failure resolves to null while enabled — throw so BullMQ retries with backoff.
+			if (vector == null) throw new Error(`embedding returned no vector for note ${note.id}`);
+
+			await this.milvusService.upsertNoteVectors([{
+				noteId: note.id,
+				vector,
+				lang,
+				userId: note.userId,
+				createdAt: this.idService.parse(note.id).date.getTime(),
+			}], modality);
+		}
+
+		// Content-quality features (structural + best-effort LLM interestingness). Never throws, and is
+		// independent of the embedding above so a quality-service outage can't fail the embed job.
+		await this.recommendationService.recordNoteFeatures(note.id, note.text, images);
 	}
 
 	/**

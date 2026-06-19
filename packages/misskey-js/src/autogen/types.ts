@@ -693,6 +693,33 @@ export type paths = {
      */
     post: operations['admin___queue___stats'];
   };
+  '/admin/recommendation/backfill-history': {
+    /**
+     * admin/recommendation/backfill-history
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    post: operations['admin___recommendation___backfill-history'];
+  };
+  '/admin/recommendation/backfill-quality': {
+    /**
+     * admin/recommendation/backfill-quality
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    post: operations['admin___recommendation___backfill-quality'];
+  };
+  '/admin/recommendation/prefill': {
+    /**
+     * admin/recommendation/prefill
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    post: operations['admin___recommendation___prefill'];
+  };
   '/admin/recommendation/rebuild-user-vectors': {
     /**
      * admin/recommendation/rebuild-user-vectors
@@ -701,6 +728,15 @@ export type paths = {
      * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
      */
     post: operations['admin___recommendation___rebuild-user-vectors'];
+  };
+  '/admin/recommendation/stats': {
+    /**
+     * admin/recommendation/stats
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:admin:show-user*
+     */
+    post: operations['admin___recommendation___stats'];
   };
   '/admin/reject-quotes': {
     /**
@@ -9640,6 +9676,7 @@ export type operations = {
             llmTranslateKey: string | null;
             llmTranslateModel: string | null;
             llmTranslatePrompt: string | null;
+            llmQualityPrompt: string | null;
             enableSpamFilter: boolean;
             enableLlmTranslation: boolean;
             defaultDarkTheme: string | null;
@@ -10379,6 +10416,182 @@ export type operations = {
     };
   };
   /**
+   * admin/recommendation/backfill-history
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+   */
+  'admin___recommendation___backfill-history': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          userId?: string | null;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            started: boolean;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/recommendation/backfill-quality
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+   */
+  'admin___recommendation___backfill-quality': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 60 */
+          days?: number;
+          /** @default 2000000 */
+          limit?: number;
+          langs?: string[] | null;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            started: boolean;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/recommendation/prefill
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+   */
+  admin___recommendation___prefill: {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 30 */
+          days?: number;
+          /** @default 2000000 */
+          limit?: number;
+          langs?: string[] | null;
+          /** @default false */
+          imagesOnly?: boolean;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            started: boolean;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * admin/recommendation/rebuild-user-vectors
    * @description No description provided.
    *
@@ -10390,8 +10603,78 @@ export type operations = {
       200: {
         content: {
           'application/json': {
-            /** @description Number of user interest vectors recomputed. */
-            count: number;
+            started: boolean;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/recommendation/stats
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *read:admin:show-user*
+   */
+  admin___recommendation___stats: {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 30 */
+          days?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            totalRecommended: number;
+            totalUsers: number;
+            daily: {
+                date: string;
+                recommended: number;
+                activeUsers: number;
+                reactionRate: number;
+              }[];
+            users: {
+                userId: string;
+                username: string;
+                viewed: number;
+                recentViewed: number;
+                likeRate: number;
+                recentLikeRate: number;
+              }[];
           };
         };
       };
@@ -12724,6 +13007,7 @@ export type operations = {
           llmTranslateKey?: string | null;
           llmTranslateModel?: string | null;
           llmTranslatePrompt?: string | null;
+          llmQualityPrompt?: string | null;
           enableEmail?: boolean;
           email?: string | null;
           smtpSecure?: boolean;
@@ -28417,6 +28701,8 @@ export type operations = {
           /** @default false */
           refresh?: boolean;
           lang?: string | null;
+          /** @default false */
+          withSensitive?: boolean;
         };
       };
     };

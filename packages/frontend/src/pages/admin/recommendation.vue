@@ -35,6 +35,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkButton :disabled="busy" @click="prefill">{{ i18n.ts._recommendation.prefill }}</MkButton>
 				</div>
 			</MkFolder>
+
+			<MkFolder>
+				<template #label>Backfill quality scores</template>
+				<div class="_gaps_s">
+					<div>Score content quality (structural + LLM interestingness) for recent public notes that don't have it yet. Skips already-scored notes.</div>
+					<MkInput v-model="qualityDays" type="number" :min="1" :max="365"><template #label>Days</template></MkInput>
+					<MkInput v-model="qualityLangs"><template #label>Languages</template><template #caption>e.g. zh,en,ja</template></MkInput>
+					<MkButton :disabled="busy" @click="backfillQuality">Backfill quality</MkButton>
+				</div>
+			</MkFolder>
 		</div>
 	</div>
 </PageWithHeader>
@@ -56,6 +66,8 @@ const busy = ref(false);
 const prefillDays = ref(30);
 const prefillLangs = ref('zh');
 const prefillImagesOnly = ref(false);
+const qualityDays = ref(60);
+const qualityLangs = ref('zh');
 
 async function run(action: () => Promise<unknown>): Promise<void> {
 	const { canceled } = await os.confirm({ type: 'question', text: i18n.ts.areYouSure });
@@ -80,6 +92,11 @@ function rebuildVectors(): Promise<void> {
 function prefill(): Promise<void> {
 	const langs = prefillLangs.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
 	return run(() => misskeyApi('admin/recommendation/prefill', { days: prefillDays.value, langs: langs.length > 0 ? langs : undefined, imagesOnly: prefillImagesOnly.value }));
+}
+
+function backfillQuality(): Promise<void> {
+	const langs = qualityLangs.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+	return run(() => misskeyApi('admin/recommendation/backfill-quality', { days: qualityDays.value, langs: langs.length > 0 ? langs : undefined }));
 }
 
 const headerActions = computed(() => []);

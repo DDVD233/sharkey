@@ -221,6 +221,20 @@ export class QueueService {
 	}
 
 	@bindThis
+	public createScoreQualityJob(noteId: MiNote['id']) {
+		// Reuses the embed queue/worker in quality-only mode: recompute content-quality features for a
+		// note whose vector already exists (or whose quality is stale). Distinct jobId so it doesn't
+		// collide with / get deduped against a pending full embed job for the same note.
+		return this.embedQueue.add('embed', { noteId, qualityOnly: true }, {
+			jobId: `quality:${noteId}`,
+			removeOnComplete: true,
+			removeOnFail: 100,
+			attempts: 2,
+			backoff: { type: 'exponential', delay: 30000 },
+		});
+	}
+
+	@bindThis
 	public createCsamCheckJob(fileId: MiDriveFile['id']) {
 		return this.csamCheckQueue.add('check', { fileId }, {
 			jobId: `csam:${fileId}`,

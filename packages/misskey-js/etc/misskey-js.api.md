@@ -318,7 +318,31 @@ type AdminQueueShowJobRequest = operations['admin___queue___show-job']['requestB
 type AdminQueueStatsResponse = operations['admin___queue___stats']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AdminRecommendationBackfillHistoryRequest = operations['admin___recommendation___backfill-history']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationBackfillHistoryResponse = operations['admin___recommendation___backfill-history']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationBackfillQualityRequest = operations['admin___recommendation___backfill-quality']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationBackfillQualityResponse = operations['admin___recommendation___backfill-quality']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationPrefillRequest = operations['admin___recommendation___prefill']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationPrefillResponse = operations['admin___recommendation___prefill']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminRecommendationRebuildUserVectorsResponse = operations['admin___recommendation___rebuild-user-vectors']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationStatsRequest = operations['admin___recommendation___stats']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationStatsResponse = operations['admin___recommendation___stats']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type AdminRejectQuotesRequest = operations['admin___reject-quotes']['requestBody']['content']['application/json'];
@@ -1609,7 +1633,15 @@ declare namespace entities {
         AdminQueueRetryJobRequest,
         AdminQueueShowJobRequest,
         AdminQueueStatsResponse,
+        AdminRecommendationBackfillHistoryRequest,
+        AdminRecommendationBackfillHistoryResponse,
+        AdminRecommendationBackfillQualityRequest,
+        AdminRecommendationBackfillQualityResponse,
+        AdminRecommendationPrefillRequest,
+        AdminRecommendationPrefillResponse,
         AdminRecommendationRebuildUserVectorsResponse,
+        AdminRecommendationStatsRequest,
+        AdminRecommendationStatsResponse,
         AdminRejectQuotesRequest,
         AdminRelaysAddRequest,
         AdminRelaysAddResponse,

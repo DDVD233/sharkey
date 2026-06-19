@@ -453,6 +453,13 @@ export class MiMeta {
 	public llmTranslatePrompt: string | null;
 
 	@Column('varchar', {
+		length: 8192,
+		nullable: true,
+		comment: 'System prompt for the recommendation content-quality scorer. Kept in the DB (not in source) so it is not part of the public release; quality scoring is disabled while this is empty.',
+	})
+	public llmQualityPrompt: string | null;
+
+	@Column('varchar', {
 		length: 1024,
 		nullable: true,
 	})

@@ -92,6 +92,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<template #caption>System prompt sent to the model for translation. <code>&#123;&#123;to&#125;&#125;</code> is replaced with the target language. Leave blank to use the built-in default.</template>
 						</MkTextarea>
 
+						<MkTextarea v-model="llmQualityPrompt">
+							<template #label>Recommendation quality prompt</template>
+							<template #caption>System prompt for the recommendation content-quality scorer (asks the model for a 1-5 interestingness score). Leave blank to disable quality scoring (the feed falls back to the structural score).</template>
+						</MkTextarea>
+
 						<MkButton primary @click="save_llm">Save</MkButton>
 					</div>
 				</MkFolder>
@@ -140,6 +145,7 @@ const llmTranslateURL = ref<string | null>('');
 const llmTranslateKey = ref<string | null>('');
 const llmTranslateModel = ref<string | null>('');
 const llmTranslatePrompt = ref<string | null>('');
+const llmQualityPrompt = ref<string | null>('');
 const enableLlmTranslation = ref<boolean>(false);
 const enableSpamFilter = ref<boolean>(false);
 
@@ -157,6 +163,8 @@ async function init() {
 	llmTranslateModel.value = meta.llmTranslateModel;
 	// Prefill with the default prompt when nothing is saved yet, so it's visible and editable.
 	llmTranslatePrompt.value = meta.llmTranslatePrompt ?? DEFAULT_LLM_TRANSLATE_PROMPT;
+	// No public default for the quality prompt — it's configured per-instance and kept out of source.
+	llmQualityPrompt.value = meta.llmQualityPrompt ?? '';
 	enableLlmTranslation.value = meta.enableLlmTranslation;
 	enableSpamFilter.value = meta.enableSpamFilter;
 }
@@ -194,6 +202,7 @@ function save_llm() {
 		llmTranslateKey: llmTranslateKey.value,
 		llmTranslateModel: llmTranslateModel.value,
 		llmTranslatePrompt: llmTranslatePrompt.value,
+		llmQualityPrompt: llmQualityPrompt.value,
 		enableLlmTranslation: enableLlmTranslation.value,
 		enableSpamFilter: enableSpamFilter.value,
 	}).then(() => {
