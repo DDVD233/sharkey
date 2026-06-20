@@ -49,6 +49,10 @@ import SkTransitionGroup from '@/components/SkTransitionGroup.vue';
 
 const props = defineProps<{
 	excludeTypes?: typeof notificationTypes[number][];
+	// When true, viewing this list marks all notifications as read on mount.
+	// Used by the dedicated notifications page; off by default so persistent
+	// surfaces (deck column, home widget) don't silently clear the badge.
+	markAsReadOnView?: boolean;
 }>();
 
 const pagingComponent = useTemplateRef('pagingComponent');
@@ -106,6 +110,13 @@ onMounted(() => {
 	connection = useStream().useChannel('main');
 	connection.on('notification', onNotification);
 	connection.on('notificationFlushed', reload);
+
+	// Opening/viewing the notifications list counts as having seen them,
+	// so mark everything as read on mount (mirrors how a freshly-arrived
+	// notification is auto-read while the page is visible).
+	if (props.markAsReadOnView && window.document.visibilityState === 'visible') {
+		useStream().send('readNotification');
+	}
 });
 
 onUnmounted(() => {

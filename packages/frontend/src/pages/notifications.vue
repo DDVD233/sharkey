@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
 	<div class="_spacer" style="--MI_SPACER-w: 800px;">
 		<div v-if="tab === 'all'">
-			<XNotifications :class="$style.notifications" :excludeTypes="excludeTypes"/>
+			<XNotifications :class="$style.notifications" :excludeTypes="excludeTypes" :markAsReadOnView="true"/>
 		</div>
 		<div v-else-if="tab === 'mentions'">
 			<MkNotes :pagination="mentionsPagination"/>
