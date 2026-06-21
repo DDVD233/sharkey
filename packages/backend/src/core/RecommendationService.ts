@@ -18,10 +18,10 @@ import { MilvusService, type Modality } from '@/core/MilvusService.js';
 import { LlmQualityService } from '@/core/LlmQualityService.js';
 import { QueueService } from '@/core/QueueService.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
-import { analyzeNoteText, structuralQuality } from '@/misc/note-quality.js';
+import { analyzeNoteText, lengthReward, LEN_FLOOR, structuralQuality } from '@/misc/note-quality.js';
 import type Logger from '@/logger.js';
 
-export type CandidateSource = 'ann' | 'perUser' | 'global' | 'following' | 'fallback';
+export type CandidateSource = 'ann' | 'perUser' | 'quality' | 'global' | 'following' | 'fallback';
 
 export type EngagementKind = 'reaction' | 'renote' | 'reply' | 'favorite' | 'post';
 
@@ -40,12 +40,44 @@ const REACTION_NORMAL_WEIGHT = 1;
 
 // Tunables for candidate generation / ranking.
 const ENGAGED_MAX = 200; // how many recent engagements feed the interest vector
-const ANN_TOPK = 400;
+const ANN_TOPK = 1000; // rough candidates per modality; re-ranked downstream, so retrieve generously
 const FEATURED_THRESHOLD = 100;
+
+// High-quality discovery pool (replaces the old global-trending source). We index recent notes the
+// LLM scored highly and retrieve from that pool, so candidate generation itself is quality-gated.
+// The LLM almost never awards a 5 (≈0.02% of notes in practice), so the effective "top tier" is q≥4
+// (~14% of notes). Old trending is no longer used as a candidate source.
+const HQ_QUALITY_MIN = 4; // minimum LLM interestingness (1-5) to enter the high-quality index
+const HQ_WINDOW_MS = 1000 * 60 * 60 * 24 * 14; // "recent enough" discovery window: 14 days
+const HQ_POOL_LIMIT = 800; // max ids pulled from the high-quality index per language
+// Cold retrieval: until a user has accumulated this much engagement signal, their interest vector is
+// too sparse/noisy to trust, so we DON'T run personalized ANN retrieval (which would pull arbitrary-
+// quality posts matching a half-formed vector). Instead the whole candidate pool is the q≥4 index, so
+// early users are always ranked over high-quality content only. ~10 ≈ "fewer than ~10 reactions".
+const COLD_RETRIEVAL_MAX_SIGNAL = 10;
 const QUEUE_LOW_WATERMARK = 12;
 const QUEUE_TTL_SEC = 60 * 60 * 24; // queues are cheap to rebuild; expire after a day of inactivity
 const PUSHED_TTL_SEC = 60 * 60 * 24 * 30; // "don't repeat" window
-const RECENCY_HALF_LIFE_HOURS = 36;
+// Recency is a multiplicative GATE on the final score (not an additive feature), so age can nudge an
+// old post down rather than merely competing with relevance/quality. Shape: a plateau of full reward
+// for fresh posts, then a gentle exponential tail floored at RECENCY_FLOOR. The dynamic range is
+// deliberately narrow (1.0 → 0.6) so recency biases toward fresh without dominating: ~1.0 within 2
+// days, ~0.9 at a week, ~0.8 at two weeks, ~0.68 at a month, and ~0.6 by two months.
+const RECENCY_PLATEAU_HOURS = 48; // ≤2 days: full reward
+const RECENCY_DECAY_HALF_LIFE_HOURS = 24 * 12; // half-life of the tail AFTER the plateau (gentle)
+const RECENCY_FLOOR = 0.6; // floor of the recency multiplier — old posts keep ≥60% of their score
+
+// Structural gates (multiplicative, same gentle 1.0 → LENGTH_FLOOR range as recency). Reward posts
+// with enough prose to stand on their own in a discovery feed; very short posts are softly demoted.
+// Image posts are EXEMPT (the image carries the information without needing words).
+const LENGTH_FLOOR = 0.6; // floor of the length multiplier — a one-word post keeps ≥60% of its score
+// Over-tagging is spam-adjacent: posts with more than TAG_SOFT_MAX hashtags are strongly demoted
+// (this is a deliberate hard penalty, NOT in the gentle 0.6 band) so they're generally not surfaced.
+const TAG_SOFT_MAX = 3;
+const TAG_OVERTAG_PENALTY = 0.2; // multiplier at one tag over the limit; decays further per extra tag
+// Replies shown alone lack the conversation they were written in, so demote them in the discovery
+// feed — except self-reply thread continuations (the client merges those with their parent note).
+const REPLY_PENALTY = 0.65;
 // Implicit negatives (notes shown but not engaged) are treated as VERY soft negatives via Rocchio:
 // the user may simply not have bothered to react. A small coefficient nudges away from skipped
 // content without ever overpowering an actual like.
@@ -73,15 +105,11 @@ const CROSS_LANG_SHARE_TEMP = 0.05;
 const CROSS_LANG_SAMPLE_K = 1000;
 
 // Image (multimodal) and text-only embeddings live in different vector subspaces and are matched
-// separately (two Milvus collections). The image:text MIX of the feed is no longer a fixed per-user
-// ratio — it's driven by post quality in one unified ranking, bounded only by MODALITY_FLOOR below.
+// separately (two Milvus collections). The image:text MIX of the feed is enforced by interleaving the
+// two streams toward MODALITY_TARGET_IMAGE (≈1:1, capped by supply) — see below.
 // Once a user has this much engagement signal, we trust their language(s) and stop mixing in
 // undetected-language notes — which are frequently NOT in their language and read as noise.
 const STRICT_LANG_MIN_AFFINITY = 5;
-
-// Diversity: cap how many notes from a single author can sit in the top of the queue, so a heavily
-// followed/prolific account can't fill the feed (overflow is demoted, not dropped).
-const MAX_PER_AUTHOR = 3;
 
 // Follow-graph as a candidate source / interest seed.
 const FOLLOWED_CANDIDATE_LIMIT = 150;
@@ -93,35 +121,36 @@ const FOLLOW_SEED_WEIGHT = 0.5;
 // Per-note features (quality, structure) are computed once off the hot path and cached here. They
 // outlive the 60-day vector window slightly so a note is never ranked without its features.
 const FEATURE_TTL_SEC = 60 * 60 * 24 * 65;
-// The whole ranking collapses to: score = α·relevance + (1−α)·qualityPrior, with α = n/(n+CONFIDENCE_K).
+// The whole ranking collapses to: score = alpha·relevance + (1−alpha)·qualityPrior, with alpha = n/(n+CONFIDENCE_K).
 // `n` is the user's accumulated engagement signal. A brand-new user (n≈0) is served almost purely on
 // quality + freshness (no personal signal to trust yet); a veteran (n≫K) almost purely on personal
 // relevance ("catch up with friends / things I like"). One interpretable knob replaces the old
 // cold-start branches. K ≈ the engagement mass at which personalization reaches half weight.
 const CONFIDENCE_K = 20;
-// …but quality/recency/popularity are intrinsic, not cold-start crutches, so they must never fully
-// disappear for veterans. We floor the quality-prior weight (equivalently, cap the gate at
-// α ≤ 1−QUALITY_PRIOR_FLOOR). With 0.5, relevance is hard-capped at 50% for established users and the
-// prior keeps ≥50%; combined with the QP split below, a maxed-out veteran sits at exactly
-// relevance 50% / quality 25% / recency 20% / popularity 5%. New users keep their tiny α (the cap
-// doesn't bind), so their relevance share is far lower and quality/recency dominate.
+// …but quality/popularity are intrinsic, not cold-start crutches, so they must never fully disappear
+// for veterans. We floor the quality-prior weight (equivalently, cap the gate at alpha ≤ 1−QUALITY_PRIOR_FLOOR).
+// With 0.5, relevance is hard-capped at 50% for established users and the prior keeps ≥50%. (Recency
+// is applied separately as a multiplicative gate below, so it's no longer part of this split.)
 const QUALITY_PRIOR_FLOOR = 0.5;
-// qualityPrior = weighted blend of content quality (LLM interestingness / structural fallback),
-// freshness and popularity. Weights sum to 1; at the veteran cap (prior weight 0.5) these become the
-// floors quality 25% / recency 20% / popularity 5% of the total score. Recency is strong so a new
-// user never sees month-old posts on the first page.
-const QP_QUALITY = 0.5;
-const QP_RECENCY = 0.4;
+// qualityPrior = weighted blend of content quality (LLM interestingness / structural fallback) and
+// popularity. Weights sum to 1. Freshness is NOT here — it's a multiplicative recency gate applied to
+// the whole blended score, so age suppresses old posts regardless of how relevant/high-quality they are.
+// Quality dominates the prior: the LLM interestingness annotation is a strong, trustworthy signal, so
+// popularity is only a light tie-breaker on top of it.
+const QP_QUALITY = 0.9;
 const QP_ENGAGEMENT = 0.1;
 // Map the 1-5 LLM interestingness score into [0.2,1] (a "1" is poor, not worthless).
 const llmTo01 = (q: number): number => Math.max(0, Math.min(1, q / 5));
-// Global policy: image posts tend to be more engaging to a general audience, so they get a small flat
-// lift. The image:text mix is otherwise driven by the quality of the post pool — no fixed per-user
-// ratio — but neither modality may drop below MODALITY_FLOOR (≈ a 10:1 hard bottom) so the feed is
-// never single-modality.
-const IMAGE_POLICY_BONUS = 0.05;
-const MODALITY_FLOOR = 1 / 11;
-// NSFW: the penalty hardens as the user matures. New users (α≈0) see sensitive posts unpenalized;
+// Global policy: image posts tend to be slightly more engaging to a general audience, so they get a
+// small flat lift. Kept tiny so it nudges, not dominates.
+const IMAGE_POLICY_BONUS = 0.02;
+// Image:text MIX is enforced by INTERLEAVING the two score-sorted streams toward this image share
+// (≈1:1), capped by supply: every window of the feed — including the first batch — gets the target mix
+// while both modalities last; once one runs out the other fills the rest. This replaces the old
+// "guarantee a floor of the total" approach, which kept the totals balanced but let the higher-scoring
+// modality cluster at the front (e.g. an all-image first page even when the pool is mostly text).
+const MODALITY_TARGET_IMAGE = 0.5;
+// NSFW: the penalty hardens as the user matures. New users (alpha≈0) see sensitive posts unpenalized;
 // established users who hide sensitive content get a hard demotion. (No penalty either way when the
 // user has opted to show sensitive content — penalizeSensitive=false.)
 const SENSITIVE_PENALTY_NEW = 1.0;
@@ -174,8 +203,6 @@ type ScoredCandidate = {
 @Injectable()
 export class RecommendationService {
 	private logger: Logger;
-	private globalRankingCache: string[] = [];
-	private globalRankingCacheAt = 0;
 
 	constructor(
 		@Inject(DI.redisForTimelines)
@@ -264,9 +291,11 @@ export class RecommendationService {
 				tx.expire(`rec:langaff:${userId}`, PUSHED_TTL_SEC);
 			}
 			await tx.exec();
-			// Make sure the liked note is embedded even if it came from somewhere outside the rec feed
-			// (home timeline, an older note, etc.), so every like can contribute to the interest vector.
+			// Make sure the liked note is embedded (and quality-scored) even if it came from somewhere
+			// outside the rec feed (home timeline, an older note, etc.), so every like can contribute to
+			// the interest vector and the note has features when surfaced.
 			this.queueService.createEmbedNoteJob(note.id).catch(() => { /* best-effort */ });
+			this.queueService.createScoreNoteJob(note.id).catch(() => { /* best-effort */ });
 			// Real-time EMA update of the interest vector. If the note isn't embedded yet, this is a
 			// no-op and the periodic full rebuild folds it in once the embed job lands.
 			await this.applyEmaUpdate(userId, note.id, weight);
@@ -536,7 +565,7 @@ export class RecommendationService {
 			const existing = await this.redisForTimelines.mget(...batch.map(r => `rec:feat:${r.id}`));
 			for (let i = 0; i < batch.length; i++) {
 				if (existing[i] != null) continue;
-				await this.queueService.createScoreQualityJob(batch[i].id);
+				await this.queueService.createScoreNoteJob(batch[i].id);
 				enqueued++;
 			}
 			scanned += batch.length;
@@ -648,12 +677,15 @@ export class RecommendationService {
 
 	/**
 	 * Computes and caches a note's content features: the deterministic structural quality (always) and
-	 * the LLM interestingness score (best-effort, 1-5). Called from the embed worker, which already has
-	 * the note's downscaled images, so no extra download happens. Never throws — quality is optional.
+	 * the LLM interestingness score (best-effort, 1-5). Runs on the 'score' queue. Idempotent: if the
+	 * note is already scored it returns immediately, so re-enqueues (e.g. one per engagement) don't
+	 * re-hit the LLM. Never throws — quality is optional. Quality is static per note; to re-score after a
+	 * prompt change, clear the `rec:feat:{id}` key (the backfill also skips already-scored notes).
 	 */
 	@bindThis
-	public async recordNoteFeatures(noteId: MiNote['id'], text: string | null, imageDataUrls: string[]): Promise<void> {
+	public async recordNoteFeatures(noteId: MiNote['id'], text: string | null, imageDataUrls: string[], lang?: string | null): Promise<void> {
 		try {
+			if (await this.redisForTimelines.exists(`rec:feat:${noteId}`)) return; // already scored
 			const analysis = analyzeNoteText(text);
 			const hasImage = imageDataUrls.length > 0;
 			const sq = structuralQuality(analysis, hasImage);
@@ -669,9 +701,102 @@ export class RecommendationService {
 				imageCount: imageDataUrls.length,
 			};
 			await this.redisForTimelines.set(`rec:feat:${noteId}`, JSON.stringify(feat), 'EX', FEATURE_TTL_SEC);
+			// Index high-quality, recent notes per language so candidate generation can retrieve from a
+			// quality-gated pool (the old global-trending source is gone). Only the LLM score counts here.
+			await this.indexHighQuality(noteId, q, lang);
 		} catch (err) {
 			this.logger.warn(`recordNoteFeatures failed for ${noteId}: ${err instanceof Error ? err.message : String(err)}`);
 		}
+	}
+
+	/**
+	 * Adds a note to the per-language high-quality index (`rec:hq:{lang}` zset, member=noteId,
+	 * score=note timestamp ms) when its LLM interestingness is ≥ HQ_QUALITY_MIN. Opportunistically
+	 * trims entries older than the discovery window so retrieval never has to filter stale ids.
+	 */
+	@bindThis
+	private async indexHighQuality(noteId: MiNote['id'], q: number | null, lang: string | null | undefined): Promise<void> {
+		if (q == null || q < HQ_QUALITY_MIN) return;
+		const nlang = this.normalizeLang(lang);
+		if (nlang == null) return;
+		const ts = this.idService.parse(noteId).date.getTime();
+		const key = `rec:hq:${nlang}`;
+		await this.redisForTimelines.multi()
+			.zadd(key, ts, noteId)
+			.zremrangebyscore(key, '-inf', Date.now() - HQ_WINDOW_MS)
+			.expire(key, Math.ceil(HQ_WINDOW_MS / 1000) + 60 * 60 * 24)
+			.exec();
+	}
+
+	/**
+	 * Retrieves recent high-quality (LLM q≥HQ_QUALITY_MIN) note ids for the given languages, newest
+	 * first, from the per-language index. This is the discovery candidate pool — for cold users it's the
+	 * ENTIRE pool, so they're ranked over high-quality content only. Best-effort: empty on any error.
+	 */
+	@bindThis
+	private async getHighQualityRecent(langs: string[], limit: number): Promise<string[]> {
+		if (langs.length === 0) return [];
+		try {
+			const now = Date.now();
+			const min = now - HQ_WINDOW_MS;
+			const out: string[] = [];
+			const pipe = this.redisForTimelines.pipeline();
+			for (const lang of langs) pipe.zrevrangebyscore(`rec:hq:${lang}`, now, min, 'LIMIT', 0, limit);
+			const res = await pipe.exec();
+			if (res) for (const [, ids] of res) out.push(...((ids as string[] | null) ?? []));
+			return out;
+		} catch (err) {
+			this.logger.warn(`getHighQualityRecent failed: ${err instanceof Error ? err.message : String(err)}`);
+			return [];
+		}
+	}
+
+	/**
+	 * One-off backfill of the high-quality index from already-scored notes: streams recent public
+	 * supported-language notes (newest-first, last `days`), reads their cached features, and indexes any
+	 * with LLM q≥HQ_QUALITY_MIN. Used to populate the index for notes scored before it existed.
+	 */
+	@bindThis
+	public async backfillHighQualityIndex(days: number, limit: number, langs?: string[]): Promise<number> {
+		const targetLangs = (langs ?? this.config.recommendation?.supportedLangs ?? ['zh', 'en', 'ja']).map(l => l.toLowerCase());
+		const sinceId = this.idService.gen(Date.now() - days * 24 * 60 * 60 * 1000);
+		let lastId: string | null = null;
+		let scanned = 0;
+		let indexed = 0;
+		this.logger.info(`hq index backfill started: days=${days} limit=${limit} langs=${targetLangs.join(',')}`);
+		while (scanned < limit) {
+			const take = Math.min(1000, limit - scanned);
+			const q = this.notesRepository.createQueryBuilder('note')
+				.select('note.id', 'id').addSelect('note.lang', 'lang')
+				.where('note.id > :sinceId', { sinceId })
+				.andWhere('note.visibility = \'public\'')
+				.andWhere('note.channelId IS NULL')
+				.andWhere('note.text IS NOT NULL')
+				.andWhere('note.lang IN (:...langs)', { langs: targetLangs })
+				.orderBy('note.id', 'DESC')
+				.limit(take);
+			if (lastId != null) q.andWhere('note.id < :lastId', { lastId });
+
+			const batch = await q.getRawMany<{ id: string; lang: string | null }>();
+			if (batch.length === 0) break;
+			const feats = await this.redisForTimelines.mget(...batch.map(r => `rec:feat:${r.id}`));
+			for (let i = 0; i < batch.length; i++) {
+				const raw = feats[i];
+				if (raw == null) continue;
+				try {
+					const f = JSON.parse(raw) as NoteFeatures;
+					if (f.q != null && f.q >= HQ_QUALITY_MIN) {
+						await this.indexHighQuality(batch[i].id, f.q, batch[i].lang);
+						indexed++;
+					}
+				} catch { /* skip */ }
+			}
+			scanned += batch.length;
+			lastId = batch[batch.length - 1].id;
+			if (scanned % 20000 === 0) this.logger.info(`hq index backfill scanned ${scanned}, indexed ${indexed}…`);
+		}
+		this.logger.info(`hq index backfill done: scanned ${scanned}, indexed ${indexed}`);
+		return indexed;
 	}
 
 	/** Loads cached features for the given notes (one pipelined read). Missing notes are absent. */
@@ -706,17 +831,6 @@ export class RecommendationService {
 	// #endregion
 
 	// #region candidate generation
-
-	@bindThis
-	private async getGlobalRankingCached(): Promise<string[]> {
-		if (this.globalRankingCacheAt !== 0 && Date.now() - this.globalRankingCacheAt < 1000 * 60 * 30) {
-			return this.globalRankingCache;
-		}
-		const ids = await this.featuredService.getGlobalNotesRanking(FEATURED_THRESHOLD);
-		this.globalRankingCache = ids;
-		this.globalRankingCacheAt = Date.now();
-		return ids;
-	}
 
 	/**
 	 * Rebuilds the user's candidate queue: unions content-ANN + popularity + still-unseen queued
@@ -817,16 +931,21 @@ export class RecommendationService {
 		]);
 		const effectiveLangs = [...langWeights.keys()];
 		const nullLangWeight = langAffTotal >= STRICT_LANG_MIN_AFFINITY ? 0 : NULL_LANG_WEIGHT;
-		// Cold/warm gate: α rises from 0 (brand-new) toward 1 (veteran) with accumulated engagement.
-		// At α≈0 the feed is quality+recency; at α→1 it's personal relevance.
+		// Cold/warm gate: alpha rises from 0 (brand-new) toward 1 (veteran) with accumulated engagement.
+		// At alpha≈0 the feed is quality+recency; at alpha→1 it's personal relevance.
 		const alpha = langAffTotal / (langAffTotal + CONFIDENCE_K);
 
+		// Cold retrieval: below COLD_RETRIEVAL_MAX_SIGNAL the interest vector is too sparse to trust, so we
+		// SKIP personalized ANN entirely and retrieve only from the high-quality (q≥4) pool — early users
+		// are always ranked over high-quality content, never over arbitrary-quality ANN matches.
+		const useAnn = langAffTotal >= COLD_RETRIEVAL_MAX_SIGNAL;
+
 		// Retrieve each modality from its OWN collection with its OWN interest vector (never mixed).
-		const [annMm, annTxt, perUserIds, globalIds, followedIds, remaining] = await Promise.all([
-			interest.mm ? this.milvusService.searchByVector(interest.mm, ANN_TOPK, effectiveLangs, 'mm') : Promise.resolve([]),
-			interest.txt ? this.milvusService.searchByVector(interest.txt, ANN_TOPK, effectiveLangs, 'txt') : Promise.resolve([]),
+		const [annMm, annTxt, perUserIds, qualityIds, followedIds, remaining] = await Promise.all([
+			(useAnn && interest.mm) ? this.milvusService.searchByVector(interest.mm, ANN_TOPK, effectiveLangs, 'mm') : Promise.resolve([]),
+			(useAnn && interest.txt) ? this.milvusService.searchByVector(interest.txt, ANN_TOPK, effectiveLangs, 'txt') : Promise.resolve([]),
 			this.featuredService.getPerUserNotesRanking(userId, FEATURED_THRESHOLD),
-			this.getGlobalRankingCached(),
+			this.getHighQualityRecent(effectiveLangs, HQ_POOL_LIMIT),
 			this.getFollowedRecentNotes(followedSet, effectiveLangs),
 			this.redisForTimelines.lrange(key, 0, -1),
 		]);
@@ -844,11 +963,15 @@ export class RecommendationService {
 		for (const hit of annTxt) consider(hit.noteId, 'ann', hit.score);
 		for (const id of perUserIds) consider(id, 'perUser', 0);
 		for (const id of followedIds) consider(id, 'following', 0);
-		for (const id of globalIds) consider(id, 'global', 0);
-		// Preserve still-unseen queued notes across rebuilds (refresh must not discard them).
+		for (const id of qualityIds) consider(id, 'quality', 0);
+		// Preserve still-unseen queued notes across rebuilds (refresh must not discard them). Carry their
+		// last-known ANN score forward (from the stored feature snapshot) rather than resetting it to 0 —
+		// otherwise a note retrieved by ANN in an earlier build but not yet served loses its relevance
+		// signal and collapses to the quality/recency floor. Fresh ANN this round still overrides via the
+		// max() in consider() when the note is re-retrieved.
 		for (const entry of remaining) {
 			const parsed = this.parseQueueEntry(entry);
-			if (parsed) consider(parsed.noteId, parsed.source, 0);
+			if (parsed) consider(parsed.noteId, parsed.source, parsed.feat?.ann ?? 0);
 		}
 
 		// Remove already-pushed notes.
@@ -869,7 +992,7 @@ export class RecommendationService {
 		]);
 		const ranked = await this.rankCandidates(userId, [...candidates.values()], langWeights, followedSet, nullLangWeight, penalizeSensitive, alpha, mmIds, features);
 		// Let the mix drift with pool quality, but guarantee neither modality drops below the floor.
-		const ordered = this.enforceModalityFloor(ranked, mmIds, MODALITY_FLOOR);
+		const ordered = this.interleaveModalities(ranked, mmIds, MODALITY_TARGET_IMAGE);
 
 		const tx = this.redisForTimelines.multi().del(key);
 		if (ordered.length > 0) {
@@ -917,45 +1040,40 @@ export class RecommendationService {
 	}
 
 	/**
-	 * Re-orders a single quality-ranked stream so the image:text mix is driven by post quality, while
-	 * guaranteeing neither modality falls below `floor` of the result (≈ a 10:1 hard bottom). It walks
-	 * in global score order, but forces the under-represented modality whenever it would otherwise be
-	 * impossible to meet its floor in the remaining slots. Score order is read from each item's `feat`.
+	 * Interleaves the two score-sorted modality streams toward `targetImageShare` (≈1:1), capped by
+	 * supply. Each stream stays in its own score order, but at every position we emit from whichever
+	 * modality is proportionally BEHIND its target — so any prefix of the result (the first batch, the
+	 * next page, …) carries the target mix while both last, then the remaining modality fills the tail.
+	 * This prevents the higher-scoring modality from clustering at the front (the old floor-of-total
+	 * approach balanced the totals but front-loaded one modality). One modality present → unchanged.
 	 */
 	@bindThis
-	private enforceModalityFloor(ranked: ScoredCandidate[], mmIds: Set<string>, floor: number): ScoredCandidate[] {
+	private interleaveModalities(ranked: ScoredCandidate[], mmIds: Set<string>, targetImageShare: number): ScoredCandidate[] {
 		const mm = ranked.filter(c => mmIds.has(c.noteId));
 		const txt = ranked.filter(c => !mmIds.has(c.noteId));
-		const total = ranked.length;
 		if (mm.length === 0 || txt.length === 0) return ranked; // only one modality present — nothing to balance
-		const quota = Math.ceil(floor * total); // minimum each modality must reach if it has the supply
 
 		const out: ScoredCandidate[] = [];
 		let mi = 0;
 		let ti = 0;
-		let mmUsed = 0;
-		let txtUsed = 0;
-		const scoreOf = (c: ScoredCandidate | undefined): number => c?.feat?.score ?? 0;
-		for (let pos = 0; pos < total; pos++) {
-			const remaining = total - pos;
-			const needMm = Math.max(0, Math.min(quota, mm.length) - mmUsed);
-			const needTxt = Math.max(0, Math.min(quota, txt.length) - txtUsed);
-			let takeMm: boolean;
-			if (needMm >= remaining && mi < mm.length) takeMm = true; // must fill mm to hit its floor
-			else if (needTxt >= remaining && ti < txt.length) takeMm = false; // must fill txt
-			else if (mi >= mm.length) takeMm = false;
-			else if (ti >= txt.length) takeMm = true;
-			else takeMm = scoreOf(mm[mi]) >= scoreOf(txt[ti]); // otherwise follow global quality order
-			if (takeMm) { out.push(mm[mi++]); mmUsed++; } else { out.push(txt[ti++]); txtUsed++; }
+		const imgT = Math.max(1e-6, targetImageShare);
+		const txtT = Math.max(1e-6, 1 - targetImageShare);
+		while (mi < mm.length || ti < txt.length) {
+			if (ti >= txt.length) { out.push(mm[mi++]); continue; }
+			if (mi >= mm.length) { out.push(txt[ti++]); continue; }
+			// Emit the modality that is furthest behind its target share so far (mi/imgT vs ti/txtT).
+			if (mi / imgT <= ti / txtT) out.push(mm[mi++]);
+			else out.push(txt[ti++]);
 		}
 		return out;
 	}
 
 	/**
 	 * Loads candidate notes, drops anything not visible/allowed, and scores each as
-	 *   score = (α·relevance + (1−α)·qualityPrior)·langWeight + followBonus + imagePolicy , ×nsfwPenalty
-	 * where qualityPrior = QP_QUALITY·quality + QP_RECENCY·recency + QP_ENGAGEMENT·popularity. α is the
-	 * cold/warm gate: new users lean on the quality prior, veterans on personal relevance. The full
+	 *   score = (alpha·relevance + (1−alpha)·qualityPrior)·recencyGate·langWeight + followBonus + imagePolicy , ×nsfwPenalty
+	 * where qualityPrior = QP_QUALITY·quality + QP_ENGAGEMENT·popularity, and recencyGate is a
+	 * multiplicative freshness decay (plateau + floored exponential tail). alpha is the cold/warm gate: new
+	 * users lean on the quality prior, veterans on personal relevance. The full
 	 * score breakdown is stashed on each candidate's `feat` for impression logging. A per-author cap
 	 * then keeps the top of the feed diverse.
 	 */
@@ -967,12 +1085,12 @@ export class RecommendationService {
 
 		// Which of these notes carry sensitive/NSFW media (only computed when we'll penalize them).
 		const sensitiveIds = penalizeSensitive ? await this.getSensitiveNoteIds(notes.map(n => n.id)) : new Set<string>();
-		// NSFW penalty hardens with the user's RAW maturity: α≈0 (new) → no penalty (they see it);
-		// α→1 → hard demote. (Unaffected by the quality-prior floor below.)
+		// NSFW penalty hardens with the user's RAW maturity: alpha≈0 (new) → no penalty (they see it);
+		// alpha→1 → hard demote. (Unaffected by the quality-prior floor below.)
 		const sensitiveMult = SENSITIVE_PENALTY_NEW + (SENSITIVE_PENALTY_ESTABLISHED - SENSITIVE_PENALTY_NEW) * alpha;
 		// Gate used for the relevance/quality blend, capped so the quality prior keeps ≥ QUALITY_PRIOR_FLOOR
 		// weight even for veterans (quality is intrinsic, not a cold-start crutch). Only binds for
-		// established users; new users keep their tiny α unchanged.
+		// established users; new users keep their tiny alpha unchanged.
 		const alphaBlend = Math.min(alpha, 1 - QUALITY_PRIOR_FLOOR);
 
 		const now = Date.now();
@@ -993,14 +1111,39 @@ export class RecommendationService {
 			const engagementRaw = this.engagementOf(note);
 			const engagement = Math.min(1, Math.log1p(engagementRaw) / Math.log1p(1000)); // soft-normalize
 			const ageHours = (now - this.idService.parse(note.id).date.getTime()) / (1000 * 60 * 60);
-			const recency = Math.pow(0.5, ageHours / RECENCY_HALF_LIFE_HOURS);
+			// Multiplicative recency gate: full reward on a plateau, then a gentle exponential tail floored
+			// at RECENCY_FLOOR so old posts are nudged down (not banished). Applied to the blended score
+			// below so age discounts even high-relevance/high-quality old posts (additive recency couldn't).
+			const recencyDecay = ageHours <= RECENCY_PLATEAU_HOURS
+				? 1
+				: Math.pow(0.5, (ageHours - RECENCY_PLATEAU_HOURS) / RECENCY_DECAY_HALF_LIFE_HOURS);
+			const recency = RECENCY_FLOOR + (1 - RECENCY_FLOOR) * recencyDecay;
 
-			// User-independent value of the note.
-			const qualityPrior = QP_QUALITY * quality + QP_RECENCY * recency + QP_ENGAGEMENT * engagement;
+			// Structural gates from the note's own text (parsed live so they apply regardless of feature
+			// cache state, and so we can read the hashtag count the cache doesn't store).
+			const analysis = analyzeNoteText(note.text);
+			// Length gate: reward standalone prose, softly demote very short posts. Image posts are exempt.
+			// lengthReward ∈ [LEN_FLOOR,1] (peaks ~100 chars); remap into the gentle [LENGTH_FLOOR,1] band.
+			const lenNorm = Math.max(0, (lengthReward(analysis.readableLength) - LEN_FLOOR) / (1 - LEN_FLOOR));
+			const lengthGate = isMm ? 1 : LENGTH_FLOOR + (1 - LENGTH_FLOOR) * lenNorm;
+			// Over-tagging penalty: hard demote once over TAG_SOFT_MAX, decaying further per extra tag.
+			const tagPenalty = analysis.hashtagCount <= TAG_SOFT_MAX
+				? 1
+				: Math.max(0.05, TAG_OVERTAG_PENALTY * Math.pow(0.7, analysis.hashtagCount - TAG_SOFT_MAX - 1));
+			// Reply penalty: a standalone reply lacks context; exempt self-reply thread continuations.
+			const isSelfReply = note.replyId != null && note.reply != null && note.reply.userId === note.userId;
+			const replyPenalty = (note.replyId != null && !isSelfReply) ? REPLY_PENALTY : 1;
+
+			// User-independent value of the note (freshness handled separately by the recency gate).
+			const qualityPrior = QP_QUALITY * quality + QP_ENGAGEMENT * engagement;
 			// Blend personal relevance vs quality by the (floored) cold/warm gate.
 			const base = alphaBlend * relevance + (1 - alphaBlend) * qualityPrior;
-			// Language scales the blended score; following + the image policy add flat lifts on top.
-			let score = base * langW + (followedSet.has(note.userId) ? W_FOLLOW : 0) + (isMm ? IMAGE_POLICY_BONUS : 0);
+			// Recency + length gate the blended score; language scales it; following + the image policy add
+			// flat lifts on top (deliberately ungated so followed authors stay sticky — their candidates are
+			// already restricted to recent posts). Tag/reply penalties then dampen the whole score, so even
+			// a followed author's over-tagged or context-less reply is demoted.
+			let score = base * recency * lengthGate * langW + (followedSet.has(note.userId) ? W_FOLLOW : 0) + (isMm ? IMAGE_POLICY_BONUS : 0);
+			score *= tagPenalty * replyPenalty;
 			if (sensitiveIds.has(note.id)) score *= sensitiveMult;
 
 			cand.feat = { ann: relevance, quality, recency, langW, alpha, score, followed: followedSet.has(note.userId), mm: isMm };
@@ -1009,21 +1152,41 @@ export class RecommendationService {
 
 		scored.sort((a, b) => b.score - a.score);
 
-		// Diversity: take at most MAX_PER_AUTHOR per author into the primary run; demote the overflow
-		// to the tail (kept, not dropped) so one prolific/followed account can't dominate the feed.
-		const perAuthor = new Map<string, number>();
-		const primary: ScoredCandidate[] = [];
-		const overflow: ScoredCandidate[] = [];
-		for (const s of scored) {
-			const n = perAuthor.get(s.authorId) ?? 0;
-			if (n < MAX_PER_AUTHOR) {
-				primary.push(s.cand);
-				perAuthor.set(s.authorId, n + 1);
-			} else {
-				overflow.push(s.cand);
+		// Author diversity / anti-streak (lenient): we DON'T cap how many times an author appears —
+		// only how many appear together. The spacing pass below reorders so the same author is never
+		// back-to-back, preserving score order otherwise; an author can still recur if spread out.
+		// Thread-continuation posts (a self-reply — the client merges these into one unit) are exempt
+		// and may stay adjacent to their parent.
+		const noteById = new Map(notes.map(n => [n.id, n]));
+		const isThreadCont = (c: ScoredCandidate): boolean => {
+			const n = noteById.get(c.noteId);
+			return n?.replyId != null && n.reply != null && n.reply.userId === n.userId;
+		};
+		return this.spaceByAuthor(scored.map(s => s.cand), c => noteById.get(c.noteId)?.userId ?? null, isThreadCont);
+	}
+
+	/**
+	 * Reorders items so no two consecutive entries share an author (anti-streak), otherwise preserving
+	 * the input order. When the next item would repeat the previous author, the highest item from a
+	 * different author is pulled up instead; if none exists (only that author remains), it's emitted.
+	 * Thread continuations are allowed to stay adjacent. Does not drop anything — purely spacing.
+	 */
+	@bindThis
+	private spaceByAuthor<T>(items: T[], authorOf: (t: T) => string | null, isThread: (t: T) => boolean): T[] {
+		const out: T[] = [];
+		const pending = items.slice();
+		let lastAuthor: string | null = null;
+		while (pending.length > 0) {
+			let idx = 0;
+			if (lastAuthor != null && !isThread(pending[0]) && authorOf(pending[0]) === lastAuthor) {
+				const alt = pending.findIndex(t => isThread(t) || authorOf(t) !== lastAuthor);
+				if (alt >= 0) idx = alt;
 			}
+			const pick = pending.splice(idx, 1)[0];
+			out.push(pick);
+			if (!isThread(pick)) lastAuthor = authorOf(pick);
 		}
-		return [...primary, ...overflow];
+		return out;
 	}
 
 	/**
@@ -1109,20 +1272,21 @@ export class RecommendationService {
 			.andWhere('user.isExplorable = TRUE')
 			.andWhere(langCond, { langs })
 			.orderBy('note.id', 'DESC')
-			.limit(Math.min(500, limit + excludeIds.length));
+			// Fetch extra headroom: the per-author cap below drops a prolific account's surplus, so we
+			// need more rows than `limit` to still fill the page with diverse content.
+			.limit(Math.min(1000, (limit + excludeIds.length) * 3));
 
 		this.queryService.generateBlockedHostQueryForNote(query);
 		const me = meId ? { id: meId } : null;
 		this.queryService.generateVisibilityQuery(query, me);
 
+		// Anti-streak: space the recency tail by author too (a high-volume account, e.g. a news mirror,
+		// posts most-recently and would otherwise fill this fallback in a block). Lenient — not a cap,
+		// just spacing — so a frequent poster still appears, spread out.
 		const exclude = new Set(excludeIds);
-		const ids: string[] = [];
-		for (const note of await query.getMany()) {
-			if (exclude.has(note.id)) continue;
-			ids.push(note.id);
-			if (ids.length >= limit) break;
-		}
-		return ids;
+		const rows = (await query.getMany()).filter(n => !exclude.has(n.id));
+		const spaced = this.spaceByAuthor(rows, n => n.userId, () => false);
+		return spaced.slice(0, limit).map(n => n.id);
 	}
 
 	// #endregion
@@ -1198,14 +1362,10 @@ export class RecommendationService {
 
 	@bindThis
 	private async getAnonymousPage(langs: string[], limit: number, offset: number): Promise<MiNote[]> {
-		const globalIds = await this.getGlobalRankingCached();
-		let notes = await this.loadAndFilterNotes(globalIds, null);
-		// Keep only matched-language / null-language notes, popular order preserved.
-		const langSet = new Set(langs);
-		notes = this.reorder(notes, globalIds).filter(n => {
-			const norm = this.normalizeLang(n.lang);
-			return n.lang == null || (norm != null && langSet.has(norm));
-		});
+		// Anonymous discovery serves the recent high-quality (q≥4) pool, newest-first (no personalization).
+		const qualityIds = await this.getHighQualityRecent(langs.map(l => this.normalizeLang(l)).filter((l): l is string => l != null), HQ_POOL_LIMIT);
+		let notes = await this.loadAndFilterNotes(qualityIds, null);
+		notes = this.reorder(notes, qualityIds);
 
 		let page = notes.slice(offset, offset + limit);
 		if (page.length < limit) {

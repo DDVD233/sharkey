@@ -40,6 +40,7 @@ import type {
 	SpamCheckQueue,
 	CsamCheckQueue,
 	EmbedQueue,
+	ScoreQueue,
 } from './QueueModule.js';
 import type httpSignature from '@peertube/http-signature';
 import type * as Bull from 'bullmq';
@@ -80,6 +81,7 @@ export class QueueService {
 		@Inject('queue:spamCheck') public spamCheckQueue: SpamCheckQueue,
 		@Inject('queue:csamCheck') public csamCheckQueue: CsamCheckQueue,
 		@Inject('queue:embed') public embedQueue: EmbedQueue,
+		@Inject('queue:score') public scoreQueue: ScoreQueue,
 	) {
 		this.systemQueue.add('tickCharts', {
 		}, {
@@ -221,12 +223,11 @@ export class QueueService {
 	}
 
 	@bindThis
-	public createScoreQualityJob(noteId: MiNote['id']) {
-		// Reuses the embed queue/worker in quality-only mode: recompute content-quality features for a
-		// note whose vector already exists (or whose quality is stale). Distinct jobId so it doesn't
-		// collide with / get deduped against a pending full embed job for the same note.
-		return this.embedQueue.add('embed', { noteId, qualityOnly: true }, {
-			jobId: `quality:${noteId}`,
+	public createScoreNoteJob(noteId: MiNote['id']) {
+		// Quality scoring runs on its own queue/worker (separate from embedding) so it can be scaled
+		// independently — high worker concurrency lets the shared LLM batch many score requests at once.
+		return this.scoreQueue.add('score', { noteId }, {
+			jobId: `score:${noteId}`,
 			removeOnComplete: true,
 			removeOnFail: 100,
 			attempts: 2,

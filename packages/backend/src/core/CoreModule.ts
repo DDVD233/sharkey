@@ -54,6 +54,7 @@ import { LanguageDetectionService } from './LanguageDetectionService.js';
 import { EmbeddingService } from './EmbeddingService.js';
 import { MilvusService } from './MilvusService.js';
 import { LlmQualityService } from './LlmQualityService.js';
+import { RecMediaService } from './RecMediaService.js';
 import { RecommendationService } from './RecommendationService.js';
 import { CsamFilterService } from './CsamFilterService.js';
 import { ModerationReportService } from './ModerationReportService.js';
@@ -376,6 +377,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		EmbeddingService,
 		MilvusService,
 		LlmQualityService,
+		RecMediaService,
 		RecommendationService,
 		CsamFilterService,
 		ModerationReportService,
@@ -705,6 +707,7 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		EmbeddingService,
 		MilvusService,
 		LlmQualityService,
+		RecMediaService,
 		RecommendationService,
 		CsamFilterService,
 		ModerationReportService,

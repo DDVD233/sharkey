@@ -47,6 +47,7 @@ import { ScheduleNotePostProcessorService } from './processors/ScheduleNotePostP
 import { SpamCheckProcessorService } from './processors/SpamCheckProcessorService.js';
 import { CsamCheckProcessorService } from './processors/CsamCheckProcessorService.js';
 import { EmbedNoteProcessorService } from './processors/EmbedNoteProcessorService.js';
+import { ScoreNoteProcessorService } from './processors/ScoreNoteProcessorService.js';
 import { EmbeddingBackfillProcessorService } from './processors/EmbeddingBackfillProcessorService.js';
 
 @Module({
@@ -97,6 +98,7 @@ import { EmbeddingBackfillProcessorService } from './processors/EmbeddingBackfil
 		SpamCheckProcessorService,
 		CsamCheckProcessorService,
 		EmbedNoteProcessorService,
+		ScoreNoteProcessorService,
 		EmbeddingBackfillProcessorService,
 	],
 	exports: [

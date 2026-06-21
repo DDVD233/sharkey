@@ -174,6 +174,8 @@ export type CsamCheckJobData = {
 
 export type EmbedNoteJobData = {
 	noteId: MiNote['id'];
-	/** When true, skip embedding and only (re)compute the note's content-quality features. */
-	qualityOnly?: boolean;
+};
+
+export type ScoreNoteJobData = {
+	noteId: MiNote['id'];
 };

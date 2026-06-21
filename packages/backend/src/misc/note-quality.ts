@@ -86,7 +86,7 @@ export function analyzeNoteText(text: string | null | undefined): NoteTextAnalys
 const PEAK_LEN = 100;
 const PLATEAU_LOG = 0.2; // half-width of the flat top in natural-log units (≈ ±22% around the peak)
 const LEN_SIGMA = 0.9; // log-units; larger = gentler falloff
-const LEN_FLOOR = 0.15; // very short / very long never score below this from length alone
+export const LEN_FLOOR = 0.15; // very short / very long never score below this from length alone
 // The readable-ratio penalty never zeroes a post out entirely — even a tag-only post keeps this floor.
 const RATIO_FLOOR = 0.5;
 // An image post with little/no text still carries information through the image.

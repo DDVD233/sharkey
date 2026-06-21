@@ -10,16 +10,19 @@ import type { NotesRepository } from '@/models/_.js';
 import type Logger from '@/logger.js';
 import { bindThis } from '@/decorators.js';
 import { EmbeddingService } from '@/core/EmbeddingService.js';
-import { MilvusService } from '@/core/MilvusService.js';
 import { RecMediaService } from '@/core/RecMediaService.js';
 import { RecommendationService } from '@/core/RecommendationService.js';
-import { IdService } from '@/core/IdService.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
-import type { EmbedNoteJobData } from '../types.js';
+import type { ScoreNoteJobData } from '../types.js';
 
+/**
+ * Computes a note's content-quality features (structural + best-effort LLM interestingness). Runs on
+ * its own queue, separate from embedding, so it can be scaled independently: a high worker concurrency
+ * lets the shared LLM batch many score requests at once. Best-effort — never blocks posting/serving.
+ */
 @Injectable()
-export class EmbedNoteProcessorService {
+export class ScoreNoteProcessorService {
 	private logger: Logger;
 	private readonly supportedLangs: Set<string>;
 
@@ -31,48 +34,29 @@ export class EmbedNoteProcessorService {
 		private notesRepository: NotesRepository,
 
 		private embeddingService: EmbeddingService,
-		private milvusService: MilvusService,
 		private recMediaService: RecMediaService,
 		private recommendationService: RecommendationService,
-		private idService: IdService,
 		private queueLoggerService: QueueLoggerService,
 	) {
-		this.logger = this.queueLoggerService.logger.createSubLogger('embed-note');
+		this.logger = this.queueLoggerService.logger.createSubLogger('score-note');
 		this.supportedLangs = new Set((config.recommendation?.supportedLangs ?? ['zh', 'en', 'ja']).map(l => l.toLowerCase()));
 	}
 
 	@bindThis
-	public async process(job: Bull.Job<EmbedNoteJobData>): Promise<void> {
+	public async process(job: Bull.Job<ScoreNoteJobData>): Promise<void> {
+		// Gated by the same "is the recommendation system on?" flag as embedding.
 		if (!this.embeddingService.enabled) return;
 
 		const note = await this.notesRepository.findOneBy({ id: job.data.noteId });
 		if (note == null) return;
-
-		// Only embed public, text-bearing notes in a supported language (other/null languages are
-		// surfaced via the recency tail instead, keeping the vector store small).
 		if (note.visibility !== 'public') return;
 		if (note.text == null || note.text.trim().length === 0) return;
 		const lang = this.recommendationService.normalizeLang(note.lang);
 		if (lang == null || !this.supportedLangs.has(lang)) return;
 
-		// Embed the whole post: its text plus its images (actually downloaded + downscaled, sent as
-		// base64 — not as URLs). Notes WITH images become multimodal vectors and go to the 'mm'
-		// collection; text-only notes go to 'txt'. The two are never mixed (different vector subspaces).
-		// Quality scoring is a SEPARATE job (the 'score' queue), so it isn't done here.
+		// Multimodal notes are scored on text + image together (same downscaled images the embed job
+		// uses). recordNoteFeatures is best-effort and never throws.
 		const images = await this.recMediaService.loadDownscaledImageDataUrls(note.fileIds);
-		const modality = images.length > 0 ? 'mm' as const : 'txt' as const;
-		const vector = modality === 'mm'
-			? await this.embeddingService.embedMultimodal(note.text, images)
-			: await this.embeddingService.embedOne(note.text);
-		// A transient failure resolves to null while enabled — throw so BullMQ retries with backoff.
-		if (vector == null) throw new Error(`embedding returned no vector for note ${note.id}`);
-
-		await this.milvusService.upsertNoteVectors([{
-			noteId: note.id,
-			vector,
-			lang,
-			userId: note.userId,
-			createdAt: this.idService.parse(note.id).date.getTime(),
-		}], modality);
+		await this.recommendationService.recordNoteFeatures(note.id, note.text, images, lang);
 	}
 }

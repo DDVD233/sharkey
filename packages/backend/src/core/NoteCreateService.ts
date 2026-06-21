@@ -454,7 +454,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 		// the author's positive engagement (reply / boost) with the target note. Engagement is only
 		// tracked for local users, since recommendations are served to them. All best-effort.
 		if (note.visibility === 'public' && note.text != null && note.text.trim().length > 0) {
+			// Embedding (ANN vector) and quality scoring run on separate queues so they scale
+			// independently; both are best-effort and off the hot path.
 			this.queueService.createEmbedNoteJob(note.id).catch(() => { /* best-effort */ });
+			this.queueService.createScoreNoteJob(note.id).catch(() => { /* best-effort */ });
 		}
 		if (user.host == null) {
 			if (data.reply) this.recommendationService.onPositiveEngagement(user.id, data.reply, 'reply').catch(() => { /* best-effort */ });

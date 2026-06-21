@@ -52,6 +52,7 @@ import { ScheduleNotePostProcessorService } from './processors/ScheduleNotePostP
 import { SpamCheckProcessorService } from './processors/SpamCheckProcessorService.js';
 import { CsamCheckProcessorService } from './processors/CsamCheckProcessorService.js';
 import { EmbedNoteProcessorService } from './processors/EmbedNoteProcessorService.js';
+import { ScoreNoteProcessorService } from './processors/ScoreNoteProcessorService.js';
 import { EmbeddingBackfillProcessorService } from './processors/EmbeddingBackfillProcessorService.js';
 import { QueueLoggerService } from './QueueLoggerService.js';
 import { QUEUE, baseWorkerOptions } from './const.js';
@@ -101,6 +102,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 	private spamCheckQueueWorker: Bull.Worker;
 	private csamCheckQueueWorker: Bull.Worker;
 	private embedQueueWorker: Bull.Worker;
+	private scoreQueueWorker: Bull.Worker;
 
 	constructor(
 		@Inject(DI.config)
@@ -146,6 +148,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		private spamCheckProcessorService: SpamCheckProcessorService,
 		private csamCheckProcessorService: CsamCheckProcessorService,
 		private embedNoteProcessorService: EmbedNoteProcessorService,
+		private scoreNoteProcessorService: ScoreNoteProcessorService,
 		private embeddingBackfillProcessorService: EmbeddingBackfillProcessorService,
 		private moderationReportService: ModerationReportService,
 		private recommendationService: RecommendationService,
@@ -669,6 +672,41 @@ export class QueueProcessorService implements OnApplicationShutdown {
 				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
 		}
 		//#endregion
+
+		//#region score
+		{
+			const logger = this.logger.createSubLogger('score');
+
+			this.scoreQueueWorker = new Bull.Worker(QUEUE.SCORE, (job) => {
+				if (this.config.sentryForBackend) {
+					return Sentry.startSpan({ name: 'Queue: Score' }, () => this.scoreNoteProcessorService.process(job));
+				} else {
+					return this.scoreNoteProcessorService.process(job);
+				}
+			}, {
+				...baseWorkerOptions(this.config, QUEUE.SCORE),
+				autorun: false,
+				// High concurrency on purpose: each job is mostly a single LLM call (≤2 output tokens),
+				// so running many at once lets the shared vLLM batch them and keep the GPU busy. The LLM
+				// server's own batching/queueing bounds the real parallelism.
+				concurrency: 48,
+			});
+			this.scoreQueueWorker
+				.on('active', (job) => logger.debug(`active id=${job.id}`))
+				.on('completed', (job, result) => logger.debug(`completed(${result}) id=${job.id}`))
+				.on('failed', (job, err) => {
+					this.logError(logger, err, job);
+					if (config.sentryForBackend) {
+						Sentry.captureMessage(`Queue: Score: ${job?.name ?? '?'}: ${err.name}: ${err.message}`, {
+							level: 'error',
+							extra: { job, err },
+						});
+					}
+				})
+				.on('error', (err: Error) => this.logError(logger, err))
+				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
+		}
+		//#endregion
 	}
 
 	private logError(logger: Logger, err: unknown, job?: Bull.Job | null): void {
@@ -713,6 +751,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			this.spamCheckQueueWorker.run(),
 			this.csamCheckQueueWorker.run(),
 			this.embedQueueWorker.run(),
+			this.scoreQueueWorker.run(),
 		]);
 	}
 
@@ -732,6 +771,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			this.spamCheckQueueWorker.close(),
 			this.csamCheckQueueWorker.close(),
 			this.embedQueueWorker.close(),
+			this.scoreQueueWorker.close(),
 		]);
 	}
 

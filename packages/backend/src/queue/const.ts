@@ -21,6 +21,7 @@ export const QUEUE = {
 	SPAM_CHECK: 'spamCheck',
 	CSAM_CHECK: 'csamCheck',
 	EMBED: 'embed',
+	SCORE: 'score',
 };
 
 export function baseQueueOptions(config: Config, queueName: typeof QUEUE[keyof typeof QUEUE]): Bull.QueueOptions {

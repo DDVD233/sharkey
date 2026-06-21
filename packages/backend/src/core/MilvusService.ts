@@ -25,6 +25,11 @@ export type AnnHit = {
 	score: number;
 };
 
+// Native grouping-search diversity: at most this many ANN hits per author, so one prolific account
+// can't monopolize recall. Lenient on purpose — the feed may still show an author several times
+// (spread out by the app-side spacing pass); this only stops a single author eating the candidate pool.
+const ANN_GROUP_SIZE = 3;
+
 /**
  * Vector store for content-based recommendation retrieval, backed by Milvus's HTTP/REST v2 API.
  * Multimodal (image+text) and text-only embeddings occupy different regions of the space, so they
@@ -114,7 +119,15 @@ export class MilvusService {
 							{ fieldName: 'createdAt', dataType: 'Int64' },
 						],
 					},
-					indexParams: [{ fieldName: 'vector', indexName: 'vector_idx', metricType: 'COSINE', indexType: 'AUTOINDEX' }],
+					// Explicit graph index (HNSW + SQ8). AUTOINDEX was observed to never finish building on this
+					// Milvus deployment, leaving searches to brute-force over unindexed segments and time out.
+					// HNSW is the right family here: candidate topK (~1000) is well under the ~1% of the collection
+					// where IVF wins, and these are coarse candidates re-ranked in-app, so SQ8's small recall loss
+					// is irrelevant while it cuts index memory ~75%.
+					indexParams: [{
+						fieldName: 'vector', indexName: 'vector_idx', metricType: 'COSINE', indexType: 'HNSW_SQ',
+						params: { M: 16, efConstruction: 200, sq_type: 'SQ8' },
+					}],
 				});
 			}
 		}
@@ -145,15 +158,31 @@ export class MilvusService {
 		const filter = langs.length > 0
 			? `lang in [${langs.map(l => `"${l.replace(/"/g, '')}"`).join(', ')}]`
 			: undefined;
+		const body = (grouped: boolean): Record<string, unknown> => ({
+			collectionName: this.collections[modality],
+			data: [vector],
+			annsField: 'vector',
+			limit: topK,
+			outputFields: ['noteId'],
+			// HNSW requires the search beam `ef` to be ≥ the requested topK; give it modest headroom for
+			// recall. Without this, large-topK searches can under-return or error on some Milvus versions.
+			searchParams: { params: { ef: Math.ceil(topK * 1.2) } },
+			...(filter ? { filter } : {}),
+			// Native diversity: cap how many results come from any single author so one prolific account
+			// (e.g. a news mirror) can't monopolize ANN recall and starve other authors from the candidate
+			// pool. This is recall-level diversity; the feed can still surface an author several times
+			// (spread out) via the app-side spacing pass.
+			...(grouped ? { groupingField: 'userId', groupSize: ANN_GROUP_SIZE } : {}),
+		});
 		try {
-			const data = await this.rpc<{ noteId?: string; distance?: number }[]>('/entities/search', {
-				collectionName: this.collections[modality],
-				data: [vector],
-				annsField: 'vector',
-				limit: topK,
-				outputFields: ['noteId'],
-				...(filter ? { filter } : {}),
-			});
+			let data: { noteId?: string; distance?: number }[] | null;
+			try {
+				data = await this.rpc<{ noteId?: string; distance?: number }[]>('/entities/search', body(true));
+			} catch (groupErr) {
+				// Older Milvus builds may not support grouping search — fall back to a plain search.
+				this.logger.warn(`grouped search failed, retrying without grouping: ${groupErr instanceof Error ? groupErr.message : String(groupErr)}`);
+				data = await this.rpc<{ noteId?: string; distance?: number }[]>('/entities/search', body(false));
+			}
 			return (data ?? [])
 				.filter((r): r is { noteId: string; distance?: number } => typeof r.noteId === 'string')
 				.map(r => ({ noteId: r.noteId, score: typeof r.distance === 'number' ? r.distance : 0 }));
