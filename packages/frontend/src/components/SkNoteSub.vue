@@ -27,9 +27,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSubNoteContent v-model:showTranslation="showTranslation" :class="$style.text" :note="note" :translating="translating" :translation="translation" :expandAllCws="props.expandAllCws"/>
 				</div>
 			</div>
-			<MkReactionsViewer ref="reactionsViewer" :note="note"/>
+			<MkReactionsViewer ref="reactionsViewer" style="margin-top: 0.5em;" :note="note"/>
 			<footer :class="$style.footer" class="_gaps _h_gaps" tabindex="0" role="group" :aria-label="i18n.ts.noteFooterLabel">
-				<button class="_button" :class="$style.noteFooterButton" @click="reply()">
+				<button class="_button" :class="[$style.noteFooterButton, $style.actReply]" @click="reply()">
 					<i class="ph-arrow-u-up-left ph-bold ph-lg"></i>
 					<p v-if="note.repliesCount > 0" :class="$style.noteFooterButtonCount">{{ note.repliesCount }}</p>
 				</button>
@@ -38,7 +38,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					ref="renoteButton"
 					v-tooltip="renoteTooltip"
 					class="_button"
-					:class="$style.noteFooterButton"
+					:class="[$style.noteFooterButton, $style.actBoost]"
 					:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
 					@click.stop="renoted ? undoRenote() : boostVisibility($event.shiftKey)"
 				>
@@ -49,7 +49,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					v-if="canRenote && !$i?.rejectQuotes"
 					ref="quoteButton"
 					class="_button"
-					:class="$style.noteFooterButton"
+					:class="[$style.noteFooterButton, $style.actBoost]"
 					@click.stop="quote()"
 				>
 					<i class="ph-quotes ph-bold ph-lg"></i>
@@ -57,10 +57,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button v-else class="_button" :class="$style.noteFooterButton" disabled>
 					<i class="ph-prohibit ph-bold ph-lg"></i>
 				</button>
-				<button v-if="note.myReaction == null && note.reactionAcceptance !== 'likeOnly'" ref="likeButton" :class="$style.noteFooterButton" class="_button" @click.stop="like()">
+				<button v-if="note.myReaction == null && note.reactionAcceptance !== 'likeOnly'" ref="likeButton" :class="[$style.noteFooterButton, $style.actLike]" class="_button" @click.stop="like()">
 					<i class="ph-heart ph-bold ph-lg"></i>
 				</button>
-				<button v-if="note.myReaction == null" ref="reactButton" :class="$style.noteFooterButton" class="_button" @click.stop="react()">
+				<button v-if="note.myReaction == null" ref="reactButton" :class="[$style.noteFooterButton, $style.actLike]" class="_button" @click.stop="react()">
 					<i v-if="note.reactionAcceptance === 'likeOnly'" class="ph-heart ph-bold ph-lg"></i>
 					<i v-else class="ph-smiley ph-bold ph-lg"></i>
 				</button>
@@ -106,6 +106,7 @@ import MkCwButton from '@/components/MkCwButton.vue';
 import { notePage } from '@/filters/note.js';
 import * as os from '@/os.js';
 import * as sound from '@/utility/sound.js';
+import { haptic } from '@/utility/haptics.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
@@ -221,6 +222,7 @@ function focus() {
 }
 
 async function reply(viaKeyboard = false): Promise<void> {
+	haptic('tap');
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	await os.post({
@@ -232,6 +234,7 @@ async function reply(viaKeyboard = false): Promise<void> {
 }
 
 function react(): void {
+	haptic('tap');
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
@@ -266,6 +269,7 @@ function react(): void {
 }
 
 function like(): void {
+	haptic('success');
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
@@ -318,6 +322,7 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 });
 
 function boostVisibility(forceMenu: boolean = false) {
+	haptic('success');
 	if (!prefer.s.showVisibilitySelectorOnBoost && !forceMenu) {
 		renote(prefer.s.visibilityOnBoost);
 	} else {
@@ -527,18 +532,64 @@ if (props.detail) {
 }
 
 .header {
-	margin-bottom: 2px;
+	// Half a line of breathing room between the name/handle row and the body.
+	margin-bottom: 0.5em;
 }
 
 .noteFooterButton {
+	position: relative;
 	margin: 0;
 	padding: 8px;
 	padding-top: 10px;
 	opacity: 0.7;
+	transition: color 0.2s;
 
-	&:hover {
-		color: var(--MI_THEME-fgHighlighted);
+	> i,
+	> .noteFooterButtonCount {
+		position: relative;
+		z-index: 1;
 	}
+
+	// Translucent circle that blooms behind the icon on hover.
+	&::before {
+		content: "";
+		position: absolute;
+		z-index: 0;
+		top: 50%;
+		left: calc(8px + 0.55em);
+		width: 1.9em;
+		height: 1.9em;
+		border-radius: 50%;
+		background: currentColor;
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(0.5);
+		transition: opacity 0.2s, transform 0.2s;
+		pointer-events: none;
+	}
+
+	@media (hover: hover) {
+		&:hover {
+			color: var(--MI_THEME-fgHighlighted);
+		}
+
+		&:hover::before {
+			opacity: 0.1;
+			transform: translate(-50%, -50%) scale(1);
+		}
+	}
+}
+
+// Per-action accent colours (reply = accent, boost = green, like/react = red).
+.actReply:hover {
+	color: var(--MI_THEME-accent);
+}
+
+.actBoost:hover {
+	color: var(--MI_THEME-renote);
+}
+
+.actLike:hover {
+	color: var(--MI_THEME-love);
 }
 // Responsible for Reply borders 448 and 508
 .reply, .more {

@@ -21,9 +21,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSubNoteContent v-model:showTranslation="showTranslation" :class="$style.text" :note="appearNote" :translating="translating" :translation="translation" :expandAllCws="expandAllCws"/>
 				</div>
 			</div>
-			<MkReactionsViewer ref="reactionsViewer" :note="appearNote"/>
+			<MkReactionsViewer ref="reactionsViewer" style="margin-top: 0.5em;" :note="appearNote"/>
 			<footer :class="$style.footer" class="_gaps _h_gaps" tabindex="0" role="group" :aria-label="i18n.ts.noteFooterLabel">
-				<button class="_button" :class="$style.noteFooterButton" @click="reply()">
+				<button class="_button" :class="[$style.noteFooterButton, $style.actReply]" @click="reply()">
 					<i class="ph-arrow-u-up-left ph-bold ph-lg"></i>
 					<p v-if="appearNote.repliesCount > 0" :class="$style.noteFooterButtonCount">{{ appearNote.repliesCount }}</p>
 				</button>
@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					ref="renoteButton"
 					v-tooltip="renoteTooltip"
 					class="_button"
-					:class="$style.noteFooterButton"
+					:class="[$style.noteFooterButton, $style.actBoost]"
 					:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
 					@click.stop="renoted ? undoRenote() : boostVisibility($event.shiftKey)"
 				>
@@ -43,15 +43,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 					v-if="canRenote && !$i?.rejectQuotes"
 					ref="quoteButton"
 					class="_button"
-					:class="$style.noteFooterButton"
+					:class="[$style.noteFooterButton, $style.actBoost]"
 					@click.stop="quote()"
 				>
 					<i class="ph-quotes ph-bold ph-lg"></i>
 				</button>
-				<button v-if="appearNote.myReaction == null && appearNote.reactionAcceptance !== 'likeOnly'" ref="likeButton" :class="$style.noteFooterButton" class="_button" @click.stop="like()">
+				<button v-if="appearNote.myReaction == null && appearNote.reactionAcceptance !== 'likeOnly'" ref="likeButton" :class="[$style.noteFooterButton, $style.actLike]" class="_button" @click.stop="like()">
 					<i class="ph-heart ph-bold ph-lg"></i>
 				</button>
-				<button v-if="appearNote.myReaction == null" ref="reactButton" :class="$style.noteFooterButton" class="_button" @click.stop="react()">
+				<button v-if="appearNote.myReaction == null" ref="reactButton" :class="[$style.noteFooterButton, $style.actLike]" class="_button" @click.stop="react()">
 					<i v-if="appearNote.reactionAcceptance === 'likeOnly'" class="ph-heart ph-bold ph-lg"></i>
 					<i v-else class="ph-smiley ph-bold ph-lg"></i>
 				</button>
@@ -90,6 +90,7 @@ import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
 import * as os from '@/os.js';
 import * as sound from '@/utility/sound.js';
+import { haptic } from '@/utility/haptics.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
@@ -180,6 +181,7 @@ function focus() {
 }
 
 async function reply(viaKeyboard = false): Promise<void> {
+	haptic('tap');
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	await os.post({
@@ -191,6 +193,7 @@ async function reply(viaKeyboard = false): Promise<void> {
 }
 
 function react(): void {
+	haptic('tap');
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
@@ -225,6 +228,7 @@ function react(): void {
 }
 
 function like(): void {
+	haptic('success');
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
@@ -277,6 +281,7 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 });
 
 function boostVisibility(forceMenu = false) {
+	haptic('success');
 	if (!prefer.s.showVisibilitySelectorOnBoost && !forceMenu) {
 		renote(prefer.s.visibilityOnBoost);
 	} else {
@@ -376,6 +381,17 @@ async function translate() {
 .root {
 	padding: 24px 32px;
 	position: relative;
+	// Keep in sync with MkNote's responsive scaling (see the @container blocks
+	// below) so merged thread members match standalone notes on narrow screens.
+	font-size: 1em;
+	transition: background-color 0.2s;
+
+	// Subtly darken the whole post on hover to signal it's clickable.
+	@media (hover: hover) {
+		&:hover {
+			background-color: var(--MI_THEME-panelHighlight);
+		}
+	}
 }
 
 .line {
@@ -418,7 +434,8 @@ async function translate() {
 }
 
 .header {
-	margin-bottom: 2px;
+	// Half a line of breathing room between the name/handle and the note body.
+	margin-bottom: 0.5em;
 }
 
 .content {
@@ -448,14 +465,59 @@ async function translate() {
 }
 
 .noteFooterButton {
+	position: relative;
 	margin: 0;
 	padding: 8px;
 	padding-top: 10px;
 	opacity: 0.7;
+	transition: color 0.2s;
 
-	&:hover {
-		color: var(--MI_THEME-fgHighlighted);
+	> i,
+	> .noteFooterButtonCount {
+		position: relative;
+		z-index: 1;
 	}
+
+	// Translucent circle that blooms behind the icon on hover.
+	&::before {
+		content: "";
+		position: absolute;
+		z-index: 0;
+		top: 50%;
+		left: calc(8px + 0.55em);
+		width: 1.9em;
+		height: 1.9em;
+		border-radius: 50%;
+		background: currentColor;
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(0.5);
+		transition: opacity 0.2s, transform 0.2s;
+		pointer-events: none;
+	}
+
+	@media (hover: hover) {
+		&:hover {
+			color: var(--MI_THEME-fgHighlighted);
+		}
+
+		&:hover::before {
+			opacity: 0.1;
+			transform: translate(-50%, -50%) scale(1);
+		}
+	}
+}
+
+// Per-action accent colours (reply = accent, boost = green, like/react = red).
+.actReply:hover {
+	color: var(--MI_THEME-accent);
+}
+
+.actBoost:hover {
+	color: var(--MI_THEME-renote);
+}
+
+.actLike:hover {
+	color: var(--MI_THEME-love);
 }
 
 .noteFooterButtonCount {
@@ -485,6 +547,7 @@ async function translate() {
 	.root {
 		padding: 24px 26px;
 		--MI-avatar: 46px;
+		font-size: 0.95em;
 	}
 
 	.line {
@@ -495,6 +558,7 @@ async function translate() {
 @container (max-width: 500px) {
 	.root {
 		padding: 20px 22px;
+		font-size: 0.9em;
 	}
 
 	.line {

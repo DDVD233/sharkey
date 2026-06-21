@@ -131,12 +131,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 				<MkButton v-if="!allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-play ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.play }}</MkButton>
 				<MkButton v-else-if="!prefer.s.animatedMfm && allowAnim && animated" :class="$style.playMFMButton" :small="true" @click="animatedMFM()" @click.stop><i class="ph-stop ph-bold ph-lg "></i> {{ i18n.ts._animatedMFM.stop }}</MkButton>
-				<div v-if="appearNote.files && appearNote.files.length > 0">
+				<div v-if="appearNote.files && appearNote.files.length > 0" :class="$style.mediaList">
 					<MkMediaList ref="galleryEl" :mediaList="appearNote.files"/>
 				</div>
 				<MkPoll v-if="appearNote.poll" ref="pollViewer" :noteId="appearNote.id" :poll="appearNote.poll" :local="!appearNote.user.host" :class="$style.poll" :author="appearNote.user" :emojiUrls="appearNote.emojis"/>
 				<div v-if="isEnabledUrlPreview">
-					<SkUrlPreviewGroup :sourceNodes="nodes" :sourceNote="appearNote" :compact="true" :detail="true" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="selfNoteIds" style="margin-top: 6px;" @click.stop/>
+					<SkUrlPreviewGroup :sourceNodes="nodes" :sourceNote="appearNote" :compact="true" :detail="true" :showAsQuote="!appearNote.user.rejectQuotes" :skipNoteIds="selfNoteIds" style="margin-top: 0.5em;" @click.stop/>
 				</div>
 				<div v-if="appearNote.renote" :class="$style.quote"><MkNoteSimple :note="appearNote.renote" :class="$style.quoteNote" :expandAllCws="props.expandAllCws"/></div>
 			</div>
@@ -151,8 +151,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkTime :time="appearNote.createdAt" mode="detail" colored/>
 				</MkA>
 			</div>
-			<MkReactionsViewer v-if="appearNote.reactionAcceptance !== 'likeOnly'" ref="reactionsViewer" style="margin-top: 6px;" :note="appearNote"/>
-			<button class="_button" :class="$style.noteFooterButton" @click="reply()">
+			<MkReactionsViewer v-if="appearNote.reactionAcceptance !== 'likeOnly'" ref="reactionsViewer" style="margin-top: 0.5em;" :note="appearNote"/>
+			<button class="_button" :class="[$style.noteFooterButton, $style.actReply]" @click="reply()">
 				<i class="ti ti-arrow-back-up"></i>
 				<p v-if="appearNote.repliesCount > 0" :class="$style.noteFooterButtonCount">{{ number(appearNote.repliesCount) }}</p>
 			</button>
@@ -161,7 +161,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				ref="renoteButton"
 				v-tooltip="renoteTooltip"
 				class="_button"
-				:class="$style.noteFooterButton"
+				:class="[$style.noteFooterButton, $style.actBoost]"
 				:style="renoted ? 'color: var(--MI_THEME-accent) !important;' : ''"
 				@mousedown.prevent="renoted ? undoRenote() : boostVisibility($event.shiftKey)"
 			>
@@ -175,15 +175,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 				v-if="canRenote && !$i?.rejectQuotes"
 				ref="quoteButton"
 				class="_button"
-				:class="$style.noteFooterButton"
+				:class="[$style.noteFooterButton, $style.actBoost]"
 				@mousedown="quote()"
 			>
 				<i class="ph-quotes ph-bold ph-lg"></i>
 			</button>
-			<button v-if="appearNote.myReaction == null && appearNote.reactionAcceptance !== 'likeOnly'" ref="likeButton" :class="$style.noteFooterButton" class="_button" @mousedown="like()">
+			<button v-if="appearNote.myReaction == null && appearNote.reactionAcceptance !== 'likeOnly'" ref="likeButton" :class="[$style.noteFooterButton, $style.actLike]" class="_button" @mousedown="like()">
 				<i class="ph-heart ph-bold ph-lg"></i>
 			</button>
-			<button ref="reactButton" :class="$style.noteFooterButton" class="_button" @click="toggleReact()">
+			<button ref="reactButton" :class="[$style.noteFooterButton, $style.actLike]" class="_button" @click="toggleReact()">
 				<i v-if="appearNote.reactionAcceptance === 'likeOnly' && appearNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--MI_THEME-love);"></i>
 				<i v-else-if="appearNote.myReaction != null" class="ti ti-minus" style="color: var(--MI_THEME-accent);"></i>
 				<i v-else-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
@@ -284,6 +284,7 @@ import number from '@/filters/number.js';
 import * as os from '@/os.js';
 import { misskeyApi, misskeyApiGet } from '@/utility/misskey-api.js';
 import * as sound from '@/utility/sound.js';
+import { haptic } from '@/utility/haptics.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
 import { $i } from '@/i.js';
@@ -532,6 +533,7 @@ useTooltip(quoteButton, async (showing) => {
 
 function boostVisibility(forceMenu: boolean = false) {
 	if (renoting) return;
+	haptic('success');
 
 	if (!prefer.s.showVisibilitySelectorOnBoost && !forceMenu) {
 		renote(prefer.s.visibilityOnBoost);
@@ -669,6 +671,7 @@ function quote() {
 }
 
 function reply(): void {
+	haptic('tap');
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	os.post({
@@ -726,6 +729,7 @@ function react(): void {
 }
 
 function like(): void {
+	haptic('success');
 	pleaseLogin({ openOnRemote: pleaseLoginContext.value });
 	showMovedDialog();
 	sound.playMisskeySfx('reaction');
@@ -772,6 +776,7 @@ function undoRenote() : void {
 }
 
 function toggleReact() {
+	haptic('tap');
 	if (appearNote.value.myReaction == null) {
 		react();
 	} else {
@@ -1118,11 +1123,18 @@ function animatedMFM() {
 }
 
 .poll {
+	margin-top: 0.5em;
 	font-size: 80%;
 }
 
+.mediaList {
+	// Half a line of separation between the note text and attached media.
+	margin-top: 0.5em;
+}
+
 .quote {
-	padding: 8px 0;
+	margin-top: 0.5em;
+	padding-bottom: 8px;
 }
 
 .quoteNote {
@@ -1144,13 +1156,58 @@ function animatedMFM() {
 }
 
 .noteFooterButton {
+	position: relative;
 	margin: 0;
 	padding: 8px;
 	opacity: 0.7;
+	transition: color 0.2s;
 
-	&:hover {
-		color: var(--MI_THEME-fgHighlighted);
+	> i,
+	> .noteFooterButtonCount {
+		position: relative;
+		z-index: 1;
 	}
+
+	// Translucent circle that blooms behind the icon on hover.
+	&::before {
+		content: "";
+		position: absolute;
+		z-index: 0;
+		top: 50%;
+		left: calc(8px + 0.55em);
+		width: 1.9em;
+		height: 1.9em;
+		border-radius: 50%;
+		background: currentColor;
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(0.5);
+		transition: opacity 0.2s, transform 0.2s;
+		pointer-events: none;
+	}
+
+	@media (hover: hover) {
+		&:hover {
+			color: var(--MI_THEME-fgHighlighted);
+		}
+
+		&:hover::before {
+			opacity: 0.1;
+			transform: translate(-50%, -50%) scale(1);
+		}
+	}
+}
+
+// Per-action accent colours (reply = accent, boost = green, like/react = red).
+.actReply:hover {
+	color: var(--MI_THEME-accent);
+}
+
+.actBoost:hover {
+	color: var(--MI_THEME-renote);
+}
+
+.actLike:hover {
+	color: var(--MI_THEME-love);
 }
 
 .noteFooterButtonCount {

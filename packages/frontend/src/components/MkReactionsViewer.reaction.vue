@@ -32,6 +32,7 @@ import MkReactionEffect from '@/components/MkReactionEffect.vue';
 import { claimAchievement } from '@/utility/achievements.js';
 import { i18n } from '@/i18n.js';
 import * as sound from '@/utility/sound.js';
+import { haptic } from '@/utility/haptics.js';
 import { checkReactionPermissions } from '@/utility/check-reaction-permissions.js';
 import { customEmojisMap } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
@@ -62,6 +63,8 @@ const canGetInfo = computed(() => !props.reaction.match(/@\w/) && props.reaction
 
 async function toggleReaction() {
 	if (!canToggle.value) return;
+
+	haptic('tap');
 
 	const oldReaction = props.note.myReaction;
 	if (oldReaction) {

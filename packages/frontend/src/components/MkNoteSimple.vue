@@ -120,7 +120,7 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 }
 
 .header {
-	margin-bottom: 2px;
+	margin-bottom: 0.5em;
 	z-index: 2;
 }
 

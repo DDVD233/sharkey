@@ -114,6 +114,12 @@ watch(() => props.expandAllCws, (expandAllCws) => {
 .root {
 	overflow-wrap: break-word;
 
+	// Half a line of separation between the note text and attached media / polls,
+	// matching the header→content gap used across the note components.
+	> details {
+		margin-top: 0.5em;
+	}
+
 	&.collapsed {
 		position: relative;
 		max-height: 9em;
