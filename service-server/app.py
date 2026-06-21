@@ -226,8 +226,32 @@ async def classify(req: ClassifyRequest) -> ClassifyResponse:
     return ClassifyResponse(label="spam" if is_spam else "ham", confidence=confidence, reason="")
 
 
+def _install_parent_death_signal():
+    """On Linux, ask the kernel to send us SIGTERM if our parent (the Sharkey backend
+    that spawned us) dies for *any* reason — including a SIGKILL the parent can't trap.
+    Without this, a hard-killed/crashed backend leaves us orphaned (reparented to PID 1)
+    still holding the service port, so the next backend boot fails to bind it (Errno 98)."""
+    try:
+        import ctypes
+        import signal
+
+        PR_SET_PDEATHSIG = 1  # from <linux/prctl.h>
+        libc = ctypes.CDLL("libc.so.6", use_errno=True)
+        libc.prctl(PR_SET_PDEATHSIG, signal.SIGTERM)
+
+        # Guard the race where the parent already died before prctl() ran: in that case
+        # the death signal would never arrive, so check for reparenting and exit.
+        if os.getppid() == 1:
+            os._exit(0)
+    except Exception:
+        # Best-effort: non-Linux or no libc/prctl — fall back to the Node-side supervisor.
+        pass
+
+
 if __name__ == "__main__":
     import uvicorn
+
+    _install_parent_death_signal()
 
     uvicorn.run(
         app,
