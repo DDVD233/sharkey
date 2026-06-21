@@ -89,7 +89,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				//originalReactionsCount,
 				instances,
 			] = await Promise.all([
-				this.noteReactionsRepository.count({ cache: 3600000 }), // 1 hour
+				// note_reaction has tens of millions of rows; an exact COUNT(1) blows past the
+				// 10s statement_timeout (and the TypeORM result cache can't help because the
+				// count never completes to populate it). Use the Postgres planner estimate instead.
+				this.noteReactionsRepository.query(
+					'SELECT reltuples::bigint AS estimate FROM pg_class WHERE oid = \'note_reaction\'::regclass',
+				).then(rows => Math.max(0, Number(rows[0]?.estimate ?? 0))),
 				//this.noteReactionsRepository.count({ where: { userHost: IsNull() }, cache: 3600000 }),
 				this.instancesRepository.count({ cache: 3600000 }),
 			]);
