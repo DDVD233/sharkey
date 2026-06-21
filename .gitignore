@@ -94,3 +94,8 @@ vite.config.local-dev.ts.timestamp-*
 
 # Local deployment helper (machine-specific)
 start-sharkey.sh
+
+# local production deploy helper (host-specific, references /root/.sharkey-deploy.env)
+deploy-sharkey.sh
+.sharkey-deploy.env
+CLAUDE.md

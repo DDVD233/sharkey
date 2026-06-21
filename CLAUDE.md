@@ -45,6 +45,16 @@ pm2 restart sharkey        # restart; pm2 logs sharkey to verify boot
 
 No DB migration is needed unless entities/migrations changed (then `pnpm migrate` before restart).
 
+**Prefer the deploy script — it can't forget the Cloudflare purge.** The site is behind Cloudflare (Full strict, origin cert in `/etc/ssl/cloudflare/`). A Cache Rule caches the index HTML (`/`) at the edge for 2h, but `vite build` empties its output dir, so a rebuild changes the hashed asset filenames and removes the old ones — a stale cached shell would then reference 404'd assets. So **every rebuild must be followed by a purge of `/`**. Use `deploy-sharkey.sh` (gitignored, repo root) which does Node-22 + `pnpm build` + `pm2 restart` + purge in one shot:
+
+```bash
+./deploy-sharkey.sh            # build + restart + purge
+./deploy-sharkey.sh --migrate  # + pnpm migrate (when entities/migrations changed)
+./deploy-sharkey.sh --purge-only
+```
+
+Secrets (Cloudflare Cache-Purge token, the `dvd.chat`/`dxd.chat` zone IDs) live in `/root/.sharkey-deploy.env` (chmod 600, outside the repo). The anonymous-API-GET Cache Rule (emojis, charts, etc.) is keyed off the origin's own `cache-control` and self-expires, so it needs no purge.
+
 Per-package work is faster than `-r`:
 
 ```bash
