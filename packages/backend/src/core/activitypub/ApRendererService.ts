@@ -333,7 +333,13 @@ export class ApRendererService {
 		const reaction = noteReaction.reaction;
 		let isMastodon = false;
 
-		if (this.meta.defaultLike && reaction.replaceAll(':', '') === this.meta.defaultLike.replaceAll(':', '')) {
+		// Compare with the U+FE0F variation selector stripped: reactions are stored
+		// normalized (FE0F removed by ReactionService.normalize), but `defaultLike` may
+		// be the fully-qualified emoji (e.g. the default ❤️ = U+2764 U+FE0F). Without
+		// this, the default-like detection misses and we'd send a literal heart emoji
+		// reaction to Mastodon/Akkoma/Pleroma instead of a plain favourite.
+		const stripVS = (s: string) => s.replaceAll(':', '').replace(/\ufe0f/g, '');
+		if (this.meta.defaultLike && stripVS(reaction) === stripVS(this.meta.defaultLike)) {
 			const note = await this.notesRepository.findOneBy({ id: noteReaction.noteId });
 
 			if (note && note.userHost) {

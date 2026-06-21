@@ -41,7 +41,26 @@ const emit = defineEmits<{
 	(ev: 'mockUpdateMyReaction', emoji: string, delta: number): void;
 }>();
 
-const initialReactions = new Set(Object.keys(props.note.reactions));
+// Mirror the backend's ReactionService.normalize: strip the U+FE0F variation
+// selector from Unicode emoji (keeping it in ZWJ sequences and custom emoji), so the
+// fully-qualified and bare forms of the same emoji (e.g. ❤️ U+2764 U+FE0F vs ❤ U+2764)
+// collapse into a single reaction bucket instead of rendering as two separate ones.
+function canonicalReaction(reaction: string): string {
+	if (reaction.includes(':')) return reaction; // custom emoji
+	if (reaction.includes('\u200d')) return reaction; // ZWJ sequence
+	return reaction.replace(/\ufe0f/g, '');
+}
+
+function coalesceReactions(source: Record<string, number>): Record<string, number> {
+	const result: Record<string, number> = {};
+	for (const [reaction, count] of Object.entries(source)) {
+		const key = canonicalReaction(reaction);
+		result[key] = (result[key] ?? 0) + count;
+	}
+	return result;
+}
+
+const initialReactions = new Set(Object.keys(props.note.reactions).map(canonicalReaction));
 
 const reactions = ref<[string, number][]>([]);
 const hasMoreReactions = ref(false);
@@ -59,7 +78,8 @@ function onMockToggleReaction(emoji: string, count: number) {
 	emit('mockUpdateMyReaction', emoji, (count - reactions.value[i][1]));
 }
 
-watch([() => props.note.reactions, () => props.maxNumber], ([newSource, maxNumber]) => {
+watch([() => props.note.reactions, () => props.maxNumber], ([rawSource, maxNumber]) => {
+	const newSource = coalesceReactions(rawSource);
 	let newReactions: [string, number][] = [];
 	hasMoreReactions.value = Object.keys(newSource).length > maxNumber;
 
