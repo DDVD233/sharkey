@@ -1,4 +1,7 @@
 ---
+driveFilesDeleteConfirm: "Are you sure you want to delete {count} items?"
+driveFilesDownloadConfirm: "Are you sure you want to download {count} files?"
+driveDownloadTooMany: "You can't download more than 3 files at once."
 introMisskey: "Welcome! Sharkey is an open source, decentralized microblogging service.\nCreate \"notes\" to share your thoughts with everyone around you. 📡\nWith \"reactions\", you can also quickly express your feelings about everyone's notes. 👍\nLet's explore a new world! 🚀"
 poweredByMisskeyDescription: "{name} is one of the services powered by the open source platform <b>Sharkey</b> which is based on Misskey (referred to as a \"Misskey instance\")."
 renotedBy: "Boosted by {user}"

@@ -40,6 +40,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button class="_button" :class="$style.navMenu" @click="showMenu"><i class="ti ti-dots"></i></button>
 			</div>
 		</nav>
+		<div v-if="browseMode && selectionCount > 0" :class="$style.selectionBar">
+			<span :class="$style.selectionCount">{{ selectionCount }}</span>
+			<MkButton inline rounded small @click="moveSelection"><i class="ti ti-folder-symlink"></i> {{ i18n.ts.move }}</MkButton>
+			<MkButton inline rounded small :disabled="selectedFiles.length === 0" @click="downloadSelection"><i class="ti ti-download"></i> {{ i18n.ts.download }}</MkButton>
+			<MkButton inline rounded small danger @click="deleteSelection"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
+			<button class="_button" :class="$style.selectionClear" @click="clearSelection"><i class="ti ti-x"></i></button>
+		</div>
 	</template>
 
 	<div
@@ -50,6 +57,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		@dragleave="onDragleave"
 		@drop.prevent.stop="onDrop"
 		@contextmenu.stop="onContextmenu"
+		@mousedown="onBgMousedown"
 	>
 		<div ref="contents">
 			<MkInfo v-if="!store.r.readDriveTip.value" closable @close="closeTip()"><div v-html="i18n.ts.driveAboutTip"></div></MkInfo>
@@ -61,9 +69,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:class="$style.folder"
 					:folder="f"
 					:selectMode="select === 'folder'"
+					:browseSelectMode="browseMode"
 					:isSelected="selectedFolders.some(x => x.id === f.id)"
 					@chosen="chooseFolder"
 					@unchose="unchoseFolder"
+					@select="(folder, ev) => browseSelect('folder', folder, ev)"
 					@move="move"
 					@upload="upload"
 					@removeFile="removeFile"
@@ -75,7 +85,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-for="(n, i) in 16" :key="i" :class="$style.padding"></div>
 				<MkButton v-if="moreFolders" ref="moreFolders" @click="fetchMoreFolders">{{ i18n.ts.loadMore }}</MkButton>
 			</div>
-			<div v-show="files.length > 0" ref="filesContainer" :class="$style.files">
+			<div v-show="files.length > 0 && !folderDestinationMode" ref="filesContainer" :class="$style.files">
 				<XFile
 					v-for="(file, i) in files"
 					:key="file.id"
@@ -84,9 +94,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:file="file"
 					:folder="folder"
 					:selectMode="select === 'file'"
+					:browseSelectMode="browseMode"
 					:isSelected="selectedFiles.some(x => x.id === file.id)"
 					@chosen="chooseFile"
-					@dragstart="isDragSource = true"
+					@select="(f, ev) => browseSelect('file', f, ev)"
+					@open="openFile"
+					@dragstart="(ev) => onFileDragstart(file, ev)"
 					@dragend="isDragSource = false"
 				/>
 				<!-- SEE: https://stackoverflow.com/questions/18744164/flex-box-align-last-row-to-grid -->
@@ -102,11 +115,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkLoading v-if="fetching"/>
 	</div>
 	<div v-if="draghover" :class="$style.dropzone"></div>
+	<Teleport to="body">
+		<div
+			v-if="rubberband"
+			:class="$style.rubberband"
+			:style="{ left: rubberband.x + 'px', top: rubberband.y + 'px', width: rubberband.w + 'px', height: rubberband.h + 'px' }"
+		></div>
+	</Teleport>
 </MkStickyContainer>
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onActivated, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from './MkButton.vue';
 import MkInfo from './MkInfo.vue';
@@ -124,6 +144,10 @@ import { claimAchievement } from '@/utility/achievements.js';
 import { prefer } from '@/preferences.js';
 import { chooseFileFromPc } from '@/utility/select-file.js';
 import { store } from '@/store.js';
+import { deviceKind } from '@/utility/device-kind.js';
+import { useRouter } from '@/router.js';
+
+const router = useRouter();
 
 const searchQuery = ref('');
 
@@ -132,9 +156,12 @@ const props = withDefaults(defineProps<{
 	type?: string;
 	multiple?: boolean;
 	select?: 'file' | 'folder' | null;
+	// 移動先フォルダをナビゲーションで選ぶモード（チェックボックスなし・ファイル非表示・OKで現在のフォルダを返す）
+	folderDestinationMode?: boolean;
 }>(), {
 	multiple: false,
 	select: null,
+	folderDestinationMode: false,
 });
 
 const emit = defineEmits<{
@@ -156,6 +183,16 @@ const hierarchyFolders = ref<Misskey.entities.DriveFolder[]>([]);
 const selectedFiles = ref<Misskey.entities.DriveFile[]>([]);
 const selectedFolders = ref<Misskey.entities.DriveFolder[]>([]);
 const uploadings = uploads;
+
+const mainEl = useTemplateRef('main');
+
+// ブラウズ（非ピッカー）モードでのみFinder風の選択を有効にする
+const browseMode = computed(() => props.select == null && !props.folderDestinationMode);
+const selectionCount = computed(() => selectedFiles.value.length + selectedFolders.value.length);
+const selectionAnchor = ref<{ kind: 'file' | 'folder'; id: string } | null>(null);
+
+// ラバーバンド（範囲ドラッグ）選択
+const rubberband = ref<{ x: number; y: number; w: number; h: number } | null>(null);
 const connection = useStream().useChannel('drive');
 
 // ドロップされようとしているか
@@ -271,15 +308,26 @@ function onDrop(ev: DragEvent) {
 	}
 
 	//#region ドライブのファイル
-	const driveFile = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILE_);
-	if (driveFile != null && driveFile !== '') {
-		const file = JSON.parse(driveFile);
-		if (files.value.some(f => f.id === file.id)) return;
-		removeFile(file.id);
-		misskeyApi('drive/files/update', {
-			fileId: file.id,
-			folderId: folder.value ? folder.value.id : null,
-		});
+	const targetFolderId = folder.value ? folder.value.id : null;
+	const driveFileIds = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILES_);
+	if (driveFileIds != null && driveFileIds !== '') {
+		// 複数選択ドラッグ: 選択中の全ファイルを移動
+		for (const id of JSON.parse(driveFileIds) as string[]) {
+			if (files.value.some(f => f.id === id)) continue; // 既に現在のフォルダにある
+			removeFile(id);
+			misskeyApi('drive/files/update', { fileId: id, folderId: targetFolderId });
+		}
+	} else {
+		const driveFile = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILE_);
+		if (driveFile != null && driveFile !== '') {
+			const file = JSON.parse(driveFile);
+			if (files.value.some(f => f.id === file.id)) return;
+			removeFile(file.id);
+			misskeyApi('drive/files/update', {
+				fileId: file.id,
+				folderId: targetFolderId,
+			});
+		}
 	}
 	//#endregion
 
@@ -442,6 +490,245 @@ function unchoseFolder(folderToUnchose: Misskey.entities.DriveFolder) {
 	emit('change-selection', selectedFolders.value);
 }
 
+//#region Finder風の選択（ブラウズモード）
+type ItemKind = 'file' | 'folder';
+
+function clearSelection() {
+	selectedFiles.value = [];
+	selectedFolders.value = [];
+	selectionAnchor.value = null;
+}
+
+// フォルダを先に、ファイルを後に並べた表示順（シフト範囲選択に使う）
+function combinedItems(): { kind: ItemKind; id: string }[] {
+	return [
+		...folders.value.map(f => ({ kind: 'folder' as const, id: f.id })),
+		...files.value.map(f => ({ kind: 'file' as const, id: f.id })),
+	];
+}
+
+function setSelectionByIds(folderIds: Set<string>, fileIds: Set<string>) {
+	selectedFolders.value = folders.value.filter(f => folderIds.has(f.id));
+	selectedFiles.value = files.value.filter(f => fileIds.has(f.id));
+}
+
+function selectRange(anchor: { kind: ItemKind; id: string }, target: { kind: ItemKind; id: string }) {
+	const items = combinedItems();
+	const ai = items.findIndex(x => x.kind === anchor.kind && x.id === anchor.id);
+	const ti = items.findIndex(x => x.kind === target.kind && x.id === target.id);
+	if (ai === -1 || ti === -1) return;
+	const [lo, hi] = ai < ti ? [ai, ti] : [ti, ai];
+	const slice = items.slice(lo, hi + 1);
+	setSelectionByIds(
+		new Set(slice.filter(x => x.kind === 'folder').map(x => x.id)),
+		new Set(slice.filter(x => x.kind === 'file').map(x => x.id)),
+	);
+}
+
+function browseSelect(kind: ItemKind, item: Misskey.entities.DriveFile | Misskey.entities.DriveFolder, ev: MouseEvent) {
+	const ctrl = ev.ctrlKey || ev.metaKey;
+	const shift = ev.shiftKey;
+
+	if (shift && selectionAnchor.value) {
+		selectRange(selectionAnchor.value, { kind, id: item.id });
+		return;
+	}
+
+	if (ctrl) {
+		if (kind === 'file') {
+			const f = item as Misskey.entities.DriveFile;
+			selectedFiles.value = selectedFiles.value.some(x => x.id === f.id)
+				? selectedFiles.value.filter(x => x.id !== f.id)
+				: [...selectedFiles.value, f];
+		} else {
+			const fo = item as Misskey.entities.DriveFolder;
+			selectedFolders.value = selectedFolders.value.some(x => x.id === fo.id)
+				? selectedFolders.value.filter(x => x.id !== fo.id)
+				: [...selectedFolders.value, fo];
+		}
+		selectionAnchor.value = { kind, id: item.id };
+		return;
+	}
+
+	// plain click: select only this item
+	if (kind === 'file') {
+		selectedFiles.value = [item as Misskey.entities.DriveFile];
+		selectedFolders.value = [];
+	} else {
+		selectedFolders.value = [item as Misskey.entities.DriveFolder];
+		selectedFiles.value = [];
+	}
+	selectionAnchor.value = { kind, id: item.id };
+}
+
+function openFile(file: Misskey.entities.DriveFile) {
+	router.push(`/my/drive/file/${file.id}`);
+}
+
+// 複数選択中のファイルをドラッグした場合、選択中の全ファイルIDをペイロードに載せる
+function onFileDragstart(file: Misskey.entities.DriveFile, ev: DragEvent) {
+	isDragSource.value = true;
+	if (browseMode.value && selectedFiles.value.length > 1 && selectedFiles.value.some(f => f.id === file.id)) {
+		ev.dataTransfer?.setData(_DATA_TRANSFER_DRIVE_FILES_, JSON.stringify(selectedFiles.value.map(f => f.id)));
+	}
+}
+
+async function moveSelection() {
+	// フォルダツリーをナビゲートし、OKで現在のフォルダを宛先にする（キャンセル時はno-op）
+	const dest = await os.selectDriveFolderToMoveInto();
+	const destId = dest[0] ? dest[0].id : null;
+
+	const filesToMove = [...selectedFiles.value];
+	const foldersToMove = [...selectedFolders.value];
+	clearSelection();
+
+	for (const f of filesToMove) {
+		if (f.folderId === destId) continue;
+		removeFile(f.id);
+		misskeyApi('drive/files/update', { fileId: f.id, folderId: destId });
+	}
+
+	for (const fo of foldersToMove) {
+		if (fo.id === destId) continue;
+		removeFolder(fo.id);
+		misskeyApi('drive/folders/update', { folderId: fo.id, parentId: destId }).catch(err => {
+			switch (err.code) {
+				case 'RECURSIVE_NESTING':
+					claimAchievement('driveFolderCircularReference');
+					os.alert({
+						type: 'error',
+						title: i18n.ts.unableToProcess,
+						text: i18n.ts.circularReferenceFolder,
+					});
+					break;
+				default:
+					os.alert({
+						type: 'error',
+						text: i18n.ts.somethingHappened,
+					});
+			}
+		});
+	}
+}
+
+async function downloadSelection() {
+	const targets = [...selectedFiles.value];
+	if (targets.length === 0) return;
+
+	if (targets.length > 3) {
+		os.alert({
+			type: 'warning',
+			text: i18n.ts.driveDownloadTooMany,
+		});
+		return;
+	}
+
+	const { canceled } = await os.confirm({
+		type: 'question',
+		text: i18n.tsx.driveFilesDownloadConfirm({ count: targets.length }),
+	});
+	if (canceled) return;
+
+	for (const file of targets) {
+		const a = window.document.createElement('a');
+		a.href = file.url;
+		a.download = file.name;
+		a.target = '_blank';
+		window.document.body.appendChild(a);
+		a.click();
+		a.remove();
+	}
+}
+
+async function deleteSelection() {
+	const count = selectionCount.value;
+	if (count === 0) return;
+
+	const { canceled } = await os.confirm({
+		type: 'warning',
+		text: i18n.tsx.driveFilesDeleteConfirm({ count }),
+	});
+	if (canceled) return;
+
+	const filesToDelete = [...selectedFiles.value];
+	const foldersToDelete = [...selectedFolders.value];
+	clearSelection();
+
+	const results = await Promise.allSettled([
+		...filesToDelete.map(f => misskeyApi('drive/files/delete', { fileId: f.id }).then(() => removeFile(f.id))),
+		...foldersToDelete.map(fo => misskeyApi('drive/folders/delete', { folderId: fo.id }).then(() => removeFolder(fo.id))),
+	]);
+
+	const failed = results.filter(r => r.status === 'rejected').length;
+	if (failed > 0) {
+		os.alert({
+			type: 'error',
+			text: i18n.ts.somethingHappened,
+		});
+	}
+}
+//#endregion
+
+//#region ラバーバンド（範囲ドラッグ）選択（デスクトップのみ）
+let rubberStart: { x: number; y: number } | null = null;
+let rubberMoved = false;
+
+function rectsIntersect(a: { left: number; top: number; right: number; bottom: number }, b: DOMRect) {
+	return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function onBgMousedown(ev: MouseEvent) {
+	if (!browseMode.value || deviceKind !== 'desktop' || ev.button !== 0) return;
+	// アイテムや操作要素の上で始まったドラッグは無視（通常の挙動に任せる）
+	if ((ev.target as HTMLElement).closest('[data-drive-item], button, a, input, ._button')) return;
+
+	rubberStart = { x: ev.clientX, y: ev.clientY };
+	rubberMoved = false;
+	rubberband.value = { x: ev.clientX, y: ev.clientY, w: 0, h: 0 };
+	window.addEventListener('mousemove', onBgMousemove);
+	window.addEventListener('mouseup', onBgMouseup);
+	ev.preventDefault();
+}
+
+function onBgMousemove(ev: MouseEvent) {
+	if (!rubberStart) return;
+	const left = Math.min(rubberStart.x, ev.clientX);
+	const top = Math.min(rubberStart.y, ev.clientY);
+	const right = Math.max(rubberStart.x, ev.clientX);
+	const bottom = Math.max(rubberStart.y, ev.clientY);
+
+	if (!rubberMoved && (right - left > 4 || bottom - top > 4)) rubberMoved = true;
+
+	rubberband.value = { x: left, y: top, w: right - left, h: bottom - top };
+
+	if (!rubberMoved) return;
+
+	const selRect = { left, top, right, bottom };
+	const folderIds = new Set<string>();
+	const fileIds = new Set<string>();
+	const els = mainEl.value?.querySelectorAll<HTMLElement>('[data-drive-item]') ?? [];
+	for (const el of Array.from(els)) {
+		if (!rectsIntersect(selRect, el.getBoundingClientRect())) continue;
+		const token = el.dataset.driveItem;
+		if (!token) continue;
+		const [kind, id] = token.split(':');
+		if (kind === 'folder') folderIds.add(id);
+		else fileIds.add(id);
+	}
+	setSelectionByIds(folderIds, fileIds);
+	if (folderIds.size + fileIds.size > 0) selectionAnchor.value = null;
+}
+
+function onBgMouseup() {
+	window.removeEventListener('mousemove', onBgMousemove);
+	window.removeEventListener('mouseup', onBgMouseup);
+	// 動かさずに背景をクリックしただけなら選択解除（Finder風）
+	if (!rubberMoved) clearSelection();
+	rubberStart = null;
+	rubberband.value = null;
+}
+//#endregion
+
 function move(target?: Misskey.entities.DriveFolder | Misskey.entities.DriveFolder['id' | 'parentId']) {
 	if (!target) {
 		goRoot();
@@ -507,11 +794,14 @@ function addFile(fileToAdd: Misskey.entities.DriveFile, unshift = false) {
 function removeFolder(folderToRemove: Misskey.entities.DriveFolder | string) {
 	const folderIdToRemove = typeof folderToRemove === 'object' ? folderToRemove.id : folderToRemove;
 	folders.value = folders.value.filter(f => f.id !== folderIdToRemove);
+	// 表示から消えたものは選択からも外す（アクションバーの件数を正しく保つ）
+	selectedFolders.value = selectedFolders.value.filter(f => f.id !== folderIdToRemove);
 }
 
 function removeFile(file: Misskey.entities.DriveFile | string) {
 	const fileId = typeof file === 'object' ? file.id : file;
 	files.value = files.value.filter(f => f.id !== fileId);
+	selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
 }
 
 function appendFile(file: Misskey.entities.DriveFile) {
@@ -762,6 +1052,8 @@ onActivated(() => {
 onBeforeUnmount(() => {
 	connection.dispose();
 	ilFilesObserver.disconnect();
+	window.removeEventListener('mousemove', onBgMousemove);
+	window.removeEventListener('mouseup', onBgMouseup);
 });
 </script>
 
@@ -777,6 +1069,52 @@ onBeforeUnmount(() => {
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 	border-bottom: solid 0.5px var(--MI_THEME-divider);
+}
+
+.selectionBar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	background: color(from var(--MI_THEME-bg) srgb r g b / 0.85);
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
+	border-bottom: solid 0.5px var(--MI_THEME-divider);
+}
+
+.selectionCount {
+	min-width: 1.6em;
+	height: 1.6em;
+	padding: 0 0.5em;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	background: var(--MI_THEME-accent);
+	color: #fff;
+	font-weight: bold;
+	font-size: 0.9em;
+}
+
+.selectionClear {
+	margin-left: auto;
+	width: 32px;
+	height: 32px;
+	border-radius: var(--MI-radius-sm);
+
+	&:hover {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
+}
+
+.rubberband {
+	position: fixed;
+	z-index: 10000;
+	pointer-events: none;
+	border: solid 1px var(--MI_THEME-accent);
+	background: color(from var(--MI_THEME-accent) srgb r g b / 0.15);
+	border-radius: 2px;
 }
 
 .navPath {

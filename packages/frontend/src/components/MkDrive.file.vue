@@ -8,7 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:class="[$style.root, { [$style.isSelected]: isSelected }]"
 	draggable="true"
 	:title="title"
+	:data-drive-item="'file:' + file.id"
 	@click="onClick"
+	@dblclick="onDblclick"
 	@contextmenu.stop="onContextmenu"
 	@dragstart="onDragstart"
 	@dragend="onDragend"
@@ -60,14 +62,18 @@ const props = withDefaults(defineProps<{
 	folder: Misskey.entities.DriveFolder | null;
 	isSelected?: boolean;
 	selectMode?: boolean;
+	browseSelectMode?: boolean;
 }>(), {
 	isSelected: false,
 	selectMode: false,
+	browseSelectMode: false,
 });
 
 const emit = defineEmits<{
 	(ev: 'chosen', r: Misskey.entities.DriveFile): void;
-	(ev: 'dragstart'): void;
+	(ev: 'select', file: Misskey.entities.DriveFile, mouseEvent: MouseEvent): void;
+	(ev: 'open', file: Misskey.entities.DriveFile): void;
+	(ev: 'dragstart', dragEvent: DragEvent): void;
 	(ev: 'dragend'): void;
 }>();
 
@@ -78,12 +84,20 @@ const title = computed(() => `${props.file.name}\n${props.file.type} ${bytes(pro
 function onClick(ev: MouseEvent) {
 	if (props.selectMode) {
 		emit('chosen', props.file);
+	} else if (props.browseSelectMode) {
+		emit('select', props.file, ev);
 	} else {
 		if (deviceKind === 'desktop') {
 			router.push(`/my/drive/file/${props.file.id}`);
 		} else {
 			os.popupMenu(getDriveFileMenu(props.file, props.folder), (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
 		}
+	}
+}
+
+function onDblclick() {
+	if (props.browseSelectMode) {
+		emit('open', props.file);
 	}
 }
 
@@ -98,7 +112,7 @@ function onDragstart(ev: DragEvent) {
 	}
 	isDragging.value = true;
 
-	emit('dragstart');
+	emit('dragstart', ev);
 }
 
 function onDragend() {
@@ -152,29 +166,14 @@ function onDragend() {
 	}
 
 	&.isSelected {
-		background: var(--MI_THEME-accent);
+		background: color(from var(--MI_THEME-accent) srgb r g b / 0.2);
 
 		&:hover {
-			background: hsl(from var(--MI_THEME-accent) h s calc(l + 10));
+			background: color(from var(--MI_THEME-accent) srgb r g b / 0.3);
 		}
 
 		&:active {
-			background: hsl(from var(--MI_THEME-accent) h s calc(l - 10));
-		}
-
-		> .label {
-			&::before,
-			&::after {
-				display: none;
-			}
-		}
-
-		> .name {
-			color: #fff;
-		}
-
-		> .thumbnail {
-			color: #fff;
+			background: color(from var(--MI_THEME-accent) srgb r g b / 0.4);
 		}
 	}
 }

@@ -108,14 +108,24 @@ function onDrop(ev: DragEvent) {
 	}
 
 	//#region ドライブのファイル
-	const driveFile = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILE_);
-	if (driveFile != null && driveFile !== '') {
-		const file = JSON.parse(driveFile);
-		emit('removeFile', file.id);
-		misskeyApi('drive/files/update', {
-			fileId: file.id,
-			folderId: props.folder ? props.folder.id : null,
-		});
+	const navTargetFolderId = props.folder ? props.folder.id : null;
+	const driveFileIds = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILES_);
+	if (driveFileIds != null && driveFileIds !== '') {
+		// 複数選択ドラッグ: 選択中の全ファイルをこのフォルダへ移動
+		for (const id of JSON.parse(driveFileIds) as string[]) {
+			emit('removeFile', id);
+			misskeyApi('drive/files/update', { fileId: id, folderId: navTargetFolderId });
+		}
+	} else {
+		const driveFile = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILE_);
+		if (driveFile != null && driveFile !== '') {
+			const file = JSON.parse(driveFile);
+			emit('removeFile', file.id);
+			misskeyApi('drive/files/update', {
+				fileId: file.id,
+				folderId: navTargetFolderId,
+			});
+		}
 	}
 	//#endregion
 

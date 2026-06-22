@@ -1,4 +1,7 @@
 ---
+driveFilesDeleteConfirm: "确定要删除这 {count} 个项目吗？"
+driveFilesDownloadConfirm: "确定要下载这 {count} 个文件吗？"
+driveDownloadTooMany: "一次最多只能下载 3 个文件。"
 disableDrawer: "不显示抽屉菜单"
 forwardReport: "将该举报信息转发给远程服务器"
 forwardReportIsAnonymous: "在远程实例上显示的报告者是匿名的系统账号，而不是您的账号。"

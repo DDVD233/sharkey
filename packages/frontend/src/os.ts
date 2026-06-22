@@ -637,6 +637,26 @@ export async function selectDriveFolder(multiple: boolean): Promise<Misskey.enti
 	});
 }
 
+// Opens a folder picker that navigates the folder tree; confirming returns the
+// currently-open folder as the move destination (empty array = drive root).
+// Like selectDriveFolder, the promise only resolves on confirm (cancel is a no-op).
+export async function selectDriveFolderToMoveInto(): Promise<Misskey.entities.DriveFolder[]> {
+	return new Promise(resolve => {
+		const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkDriveSelectDialog.vue')), {
+			type: 'folder',
+			multiple: false,
+			asMoveDestination: true,
+		}, {
+			done: folders => {
+				if (folders) {
+					resolve(folders);
+				}
+			},
+			closed: () => dispose(),
+		});
+	});
+}
+
 export async function selectRole(params: ComponentProps<typeof MkRoleSelectDialog_TypeReferenceOnly>): Promise<
 	{ canceled: true; result: undefined; } |
 	{ canceled: false; result: Misskey.entities.Role[] }

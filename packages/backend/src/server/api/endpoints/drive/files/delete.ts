@@ -35,10 +35,10 @@ export const meta = {
 		},
 	},
 
-	// 100 calls per minute
+	// 10000 calls per day (high to allow batch deletion from the drive UI)
 	limit: {
-		duration: 1000 * 60,
-		max: 100,
+		duration: 1000 * 60 * 60 * 24,
+		max: 10000,
 	},
 } as const;
 

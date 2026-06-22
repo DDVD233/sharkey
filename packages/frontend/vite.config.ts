@@ -156,6 +156,7 @@ export function getConfig(): UserConfig {
 			_DEV_: process.env.NODE_ENV !== 'production',
 			_PERF_PREFIX_: JSON.stringify('Misskey:'),
 			_DATA_TRANSFER_DRIVE_FILE_: JSON.stringify('mk_drive_file'),
+			_DATA_TRANSFER_DRIVE_FILES_: JSON.stringify('mk_drive_files'),
 			_DATA_TRANSFER_DRIVE_FOLDER_: JSON.stringify('mk_drive_folder'),
 			_DATA_TRANSFER_DECK_COLUMN_: JSON.stringify('mk_deck_column'),
 			__VUE_OPTIONS_API__: true,

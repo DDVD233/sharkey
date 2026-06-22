@@ -11975,6 +11975,18 @@ export interface Locale extends ILocale {
         "serverHostPlaceholder": string;
     };
     /**
+     * Are you sure you want to delete {count} items?
+     */
+    "driveFilesDeleteConfirm": ParameterizedString<"count">;
+    /**
+     * Are you sure you want to download {count} files?
+     */
+    "driveFilesDownloadConfirm": ParameterizedString<"count">;
+    /**
+     * You can't download more than 3 files at once.
+     */
+    "driveDownloadTooMany": string;
+    /**
      * Approvals
      */
     "approvals": string;

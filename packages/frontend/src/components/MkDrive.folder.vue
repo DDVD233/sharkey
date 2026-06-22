@@ -5,10 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	:class="[$style.root, { [$style.draghover]: draghover }]"
+	:class="[$style.root, { [$style.draghover]: draghover, [$style.isSelected]: isSelected && browseSelectMode }]"
 	draggable="true"
 	:title="title"
+	:data-drive-item="'folder:' + folder.id"
 	@click="onClick"
+	@dblclick="onDblclick"
 	@contextmenu.stop="onContextmenu"
 	@mouseover="onMouseover"
 	@mouseout="onMouseout"
@@ -48,14 +50,17 @@ const props = withDefaults(defineProps<{
 	folder: Misskey.entities.DriveFolder;
 	isSelected?: boolean;
 	selectMode?: boolean;
+	browseSelectMode?: boolean;
 }>(), {
 	isSelected: false,
 	selectMode: false,
+	browseSelectMode: false,
 });
 
 const emit = defineEmits<{
 	(ev: 'chosen', v: Misskey.entities.DriveFolder): void;
 	(ev: 'unchose', v: Misskey.entities.DriveFolder): void;
+	(ev: 'select', folder: Misskey.entities.DriveFolder, mouseEvent: MouseEvent): void;
 	(ev: 'move', v: Misskey.entities.DriveFolder): void;
 	(ev: 'upload', file: File, folder: Misskey.entities.DriveFolder);
 	(ev: 'removeFile', v: Misskey.entities.DriveFile['id']): void;
@@ -78,8 +83,18 @@ function checkboxClicked() {
 	}
 }
 
-function onClick() {
-	emit('move', props.folder);
+function onClick(ev: MouseEvent) {
+	if (props.browseSelectMode) {
+		emit('select', props.folder, ev);
+	} else {
+		emit('move', props.folder);
+	}
+}
+
+function onDblclick() {
+	if (props.browseSelectMode) {
+		emit('move', props.folder);
+	}
 }
 
 function onMouseover() {
@@ -148,14 +163,23 @@ function onDrop(ev: DragEvent) {
 	}
 
 	//#region ドライブのファイル
-	const driveFile = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILE_);
-	if (driveFile != null && driveFile !== '') {
-		const file = JSON.parse(driveFile);
-		emit('removeFile', file.id);
-		misskeyApi('drive/files/update', {
-			fileId: file.id,
-			folderId: props.folder.id,
-		});
+	const driveFileIds = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILES_);
+	if (driveFileIds != null && driveFileIds !== '') {
+		// 複数選択ドラッグ: 選択中の全ファイルをこのフォルダへ移動
+		for (const id of JSON.parse(driveFileIds) as string[]) {
+			emit('removeFile', id);
+			misskeyApi('drive/files/update', { fileId: id, folderId: props.folder.id });
+		}
+	} else {
+		const driveFile = ev.dataTransfer.getData(_DATA_TRANSFER_DRIVE_FILE_);
+		if (driveFile != null && driveFile !== '') {
+			const file = JSON.parse(driveFile);
+			emit('removeFile', file.id);
+			misskeyApi('drive/files/update', {
+				fileId: file.id,
+				folderId: props.folder.id,
+			});
+		}
 	}
 	//#endregion
 
@@ -328,6 +352,18 @@ function onContextmenu(ev: MouseEvent) {
 			left: -4px;
 			border: 2px dashed var(--MI_THEME-focus);
 			border-radius: var(--MI-radius-xs);
+		}
+	}
+
+	&.isSelected {
+		background: color(from var(--MI_THEME-accent) srgb r g b / 0.2);
+
+		&:hover {
+			background: color(from var(--MI_THEME-accent) srgb r g b / 0.3);
+		}
+
+		&:active {
+			background: color(from var(--MI_THEME-accent) srgb r g b / 0.4);
 		}
 	}
 }
