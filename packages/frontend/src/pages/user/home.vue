@@ -142,17 +142,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div class="contents _gaps">
 				<MkInfo v-if="user.pinnedNotes.length === 0 && $i?.id === user.id">{{ i18n.ts.userPagePinTip }}</MkInfo>
-				<template v-if="narrow">
-					<MkLazy>
-						<XFiles :key="user.id" :user="user" :collapsed="true" @unfold="emit('unfoldFiles')"/>
-					</MkLazy>
-					<MkLazy>
-						<XActivity :key="user.id" :user="user" :collapsed="true"/>
-					</MkLazy>
-					<MkLazy v-if="user.listenbrainz && listenbrainzdata">
-						<XListenBrainz :key="user.id" :user="user" :collapsed="true"/>
-					</MkLazy>
-				</template>
+				<MkLazy>
+					<XFiles :key="user.id" :user="user" :collapsed="true" @unfold="emit('unfoldFiles')"/>
+				</MkLazy>
+				<MkLazy>
+					<XActivity :key="user.id" :user="user" :collapsed="true"/>
+				</MkLazy>
+				<MkLazy v-if="user.listenbrainz && listenbrainzdata">
+					<XListenBrainz :key="user.id" :user="user" :collapsed="true"/>
+				</MkLazy>
 				<!-- <div v-if="!disableNotes">
 					<MkLazy>
 						<XTimeline :user="user"/>
@@ -184,11 +182,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</MkLazy>
 				</MkStickyContainer>
 			</div>
-		</div>
-		<div v-if="!narrow" class="sub _gaps" style="container-type: inline-size;">
-			<XFiles :key="user.id" :user="user" @unfold="emit('unfoldFiles')"/>
-			<XActivity :key="user.id" :user="user"/>
-			<XListenBrainz v-if="user.listenbrainz && listenbrainzdata" :key="user.id" :user="user"/>
 		</div>
 	</div>
 	<div class="background"></div>
