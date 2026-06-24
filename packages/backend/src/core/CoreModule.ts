@@ -56,6 +56,15 @@ import { MilvusService } from './MilvusService.js';
 import { LlmQualityService } from './LlmQualityService.js';
 import { RecMediaService } from './RecMediaService.js';
 import { RecommendationService } from './RecommendationService.js';
+import { RecBlocklistService } from './recommendation/RecBlocklistService.js';
+import { RecRetrievalService } from './recommendation/RecRetrievalService.js';
+import { RecNoteFeaturesService } from './recommendation/RecNoteFeaturesService.js';
+import { RecInterestService } from './recommendation/RecInterestService.js';
+import { RecFollowsService } from './recommendation/RecFollowsService.js';
+import { RecRankingService } from './recommendation/RecRankingService.js';
+import { RecCandidateService } from './recommendation/RecCandidateService.js';
+import { RecServingService } from './recommendation/RecServingService.js';
+import { RecBackfillService } from './recommendation/RecBackfillService.js';
 import { CsamFilterService } from './CsamFilterService.js';
 import { ModerationReportService } from './ModerationReportService.js';
 import { LatestNoteService } from './LatestNoteService.js';
@@ -210,6 +219,15 @@ const $EmbeddingService: Provider = { provide: 'EmbeddingService', useExisting: 
 const $MilvusService: Provider = { provide: 'MilvusService', useExisting: MilvusService };
 const $LlmQualityService: Provider = { provide: 'LlmQualityService', useExisting: LlmQualityService };
 const $RecommendationService: Provider = { provide: 'RecommendationService', useExisting: RecommendationService };
+const $RecBlocklistService: Provider = { provide: 'RecBlocklistService', useExisting: RecBlocklistService };
+const $RecRetrievalService: Provider = { provide: 'RecRetrievalService', useExisting: RecRetrievalService };
+const $RecNoteFeaturesService: Provider = { provide: 'RecNoteFeaturesService', useExisting: RecNoteFeaturesService };
+const $RecInterestService: Provider = { provide: 'RecInterestService', useExisting: RecInterestService };
+const $RecFollowsService: Provider = { provide: 'RecFollowsService', useExisting: RecFollowsService };
+const $RecRankingService: Provider = { provide: 'RecRankingService', useExisting: RecRankingService };
+const $RecCandidateService: Provider = { provide: 'RecCandidateService', useExisting: RecCandidateService };
+const $RecServingService: Provider = { provide: 'RecServingService', useExisting: RecServingService };
+const $RecBackfillService: Provider = { provide: 'RecBackfillService', useExisting: RecBackfillService };
 const $CsamFilterService: Provider = { provide: 'CsamFilterService', useExisting: CsamFilterService };
 const $ModerationReportService: Provider = { provide: 'ModerationReportService', useExisting: ModerationReportService };
 const $LatestNoteService: Provider = { provide: 'LatestNoteService', useExisting: LatestNoteService };
@@ -379,6 +397,15 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		LlmQualityService,
 		RecMediaService,
 		RecommendationService,
+		RecBlocklistService,
+		RecRetrievalService,
+		RecNoteFeaturesService,
+		RecInterestService,
+		RecFollowsService,
+		RecRankingService,
+		RecCandidateService,
+		RecServingService,
+		RecBackfillService,
 		CsamFilterService,
 		ModerationReportService,
 		LatestNoteService,
@@ -543,6 +570,15 @@ const $SponsorsService: Provider = { provide: 'SponsorsService', useExisting: Sp
 		$MilvusService,
 		$LlmQualityService,
 		$RecommendationService,
+		$RecBlocklistService,
+		$RecRetrievalService,
+		$RecNoteFeaturesService,
+		$RecInterestService,
+		$RecFollowsService,
+		$RecRankingService,
+		$RecCandidateService,
+		$RecServingService,
+		$RecBackfillService,
 		$CsamFilterService,
 		$ModerationReportService,
 		$LatestNoteService,

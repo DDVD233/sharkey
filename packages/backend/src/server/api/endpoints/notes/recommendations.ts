@@ -44,6 +44,10 @@ export const paramDef = {
 		// Whether the user shows sensitive/NSFW content by default. When false (the default), sensitive
 		// notes are softly down-ranked since they're hidden anyway and reduce feed quality.
 		withSensitive: { type: 'boolean', default: false },
+		// Mirrors the timeline "show boosts" toggle: when false, boosts (pure renotes) are excluded from
+		// the recommendation feed at retrieval (the follows lane drops them rather than scoring an empty
+		// wrapper). When true, a boost is resolved to the note it boosts and scored on that real content.
+		withRenotes: { type: 'boolean', default: true },
 	},
 	required: [],
 } as const;
@@ -56,8 +60,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const langs = await this.recommendationService.resolveLangs(me ? me.id : null, ps.lang);
-			const notes = await this.recommendationService.getPage(me ? me.id : null, langs, ps.limit, ps.refresh, ps.offset, !ps.withSensitive);
-			return await this.noteEntityService.packMany(notes, me);
+			const { notes, breakdowns } = await this.recommendationService.getPage(me ? me.id : null, langs, ps.limit, ps.refresh, ps.offset, !ps.withSensitive, ps.withRenotes);
+			const __pm0 = Date.now();
+			const packed = await this.noteEntityService.packMany(notes, me);
+			// eslint-disable-next-line no-console
+			console.log(`[timing] recommendations packMany(${notes.length}): ${Date.now() - __pm0}ms`);
+			// Ship the per-note "why was this recommended?" breakdown alongside each note (transient,
+			// underscore-prefixed field, like `_shouldInsertAd_`) so the client can render it on demand
+			// without a second request. packMany preserves input order, so packed[i] ↔ notes[i].
+			for (let i = 0; i < packed.length; i++) {
+				const breakdown = breakdowns.get(notes[i].id);
+				if (breakdown != null) (packed[i] as typeof packed[number] & { _recommendationFactors_?: unknown })._recommendationFactors_ = breakdown;
+			}
+			return packed;
 		});
 	}
 }

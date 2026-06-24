@@ -16,6 +16,7 @@ import { CacheService } from '@/core/CacheService.js';
 import { UserFollowingService } from '@/core/UserFollowingService.js';
 import { MiLocalUser } from '@/models/User.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
+import { RecommendationService } from '@/core/RecommendationService.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -75,6 +76,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private fanoutTimelineEndpointService: FanoutTimelineEndpointService,
 		private userFollowingService: UserFollowingService,
 		private queryService: QueryService,
+		private recommendationService: RecommendationService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const untilId = ps.untilId ?? (ps.untilDate ? this.idService.gen(ps.untilDate!) : null);
@@ -94,6 +96,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					this.activeUsersChart.read(me);
 				});
 
+				// Mark these as seen in the home timeline so the rec feed's follows lane won't re-surface them.
+				this.recommendationService.recordHomeTimelineViews(me.id, timeline.map(n => n.id)).catch(() => { /* best-effort */ });
 				return await this.noteEntityService.packMany(timeline, me);
 			}
 
@@ -140,7 +144,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				this.activeUsersChart.read(me);
 			});
 
-			return timeline;
+			// Mark these as seen in the home timeline so the rec feed's follows lane won't re-surface them.
+			const packed = await timeline;
+			this.recommendationService.recordHomeTimelineViews(me.id, packed.map(n => n.id)).catch(() => { /* best-effort */ });
+			return packed;
 		});
 	}
 
