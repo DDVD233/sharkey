@@ -99,17 +99,3 @@ start-sharkey.sh
 deploy-sharkey.sh
 .sharkey-deploy.env
 CLAUDE.md
-
-# Recommendation ops/analysis scripts that hardcode host-specific DB/Redis/Milvus
-# credentials — kept local, never pushed. (purge-user-content.mjs boots the DI
-# container instead of hardcoding creds, so it stays tracked.)
-/packages/backend/scripts/backfill-hq.mjs
-/packages/backend/scripts/backfill-impression-features.mjs
-/packages/backend/scripts/build-user-topic-arrays.mjs
-/packages/backend/scripts/classify-topics-sample.mjs
-/packages/backend/scripts/clean-inbox-queue.mjs
-/packages/backend/scripts/enqueue-topic-backfill.mjs
-/packages/backend/scripts/evict-lowq-milvus.mjs
-/packages/backend/scripts/learn-coef.mjs
-/packages/backend/scripts/sim-coldstart.mjs
-/packages/backend/scripts/sim-newuser.mjs
