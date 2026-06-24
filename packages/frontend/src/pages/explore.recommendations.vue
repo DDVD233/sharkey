@@ -5,7 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkPullToRefresh :refresher="() => reload()">
-	<MkNotes ref="notesComponent" :pagination="pagination" :noGap="!prefer.s.showGapBetweenNotesInTimeline"/>
+	<div ref="rootEl">
+		<MkNotes ref="notesComponent" :pagination="pagination" :noGap="!prefer.s.showGapBetweenNotesInTimeline"/>
+	</div>
 </MkPullToRefresh>
 </template>
 
@@ -16,8 +18,14 @@ import MkNotes from '@/components/MkNotes.vue';
 import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
 import { miLocalStorage } from '@/local-storage.js';
 import { prefer } from '@/preferences.js';
+import { store } from '@/store.js';
+import { useRecommendationDwell } from '@/utility/use-recommendation-dwell.js';
 
 const notesComponent = useTemplateRef('notesComponent');
+const rootEl = useTemplateRef('rootEl');
+
+// Track dwell time per recommended note → impression log ("good click" signal for the learned ranker).
+useRecommendationDwell(rootEl);
 
 // The feed is a server-maintained queue rather than an id-ordered list, so we page by offset.
 // Most-relevant notes come first; the server backfills popular/recent so the flow never ends.
@@ -32,6 +40,9 @@ const pagination: Paging = {
 		// Only show sensitive content if the user opts to display NSFW by default; otherwise it's
 		// down-ranked server-side (it's hidden in the UI anyway and lowers feed quality).
 		withSensitive: prefer.s.nsfw === 'ignore',
+		// Respect the user's timeline "show boosts" toggle here too: when off, boosts are dropped from
+		// the recommendation feed at retrieval (and never re-rank as empty wrappers).
+		withRenotes: store.r.tl.value.filter.withRenotes,
 	})),
 };
 

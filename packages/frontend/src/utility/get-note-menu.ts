@@ -9,6 +9,7 @@ import { url } from '@@/js/config.js';
 import { claimAchievement } from './achievements.js';
 import type { Ref, ShallowRef } from 'vue';
 import type { MenuItem } from '@/types/menu.js';
+import type { NoteWithRecommendation } from '@/utility/recommendation-reason.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { instance, policies } from '@/instance.js';
@@ -22,6 +23,7 @@ import { clipsCache, favoritedChannelsCache } from '@/cache.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import { isSupportShare } from '@/utility/navigator.js';
 import { getAppearNote } from '@/utility/get-appear-note.js';
+import { openRecommendationReason } from '@/utility/recommendation-reason.js';
 import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
@@ -291,6 +293,26 @@ export function getNoteMenu(props: {
 	}
 
 	const menuItems: MenuItem[] = [];
+
+	// Recommendation feed: notes from the recommender carry their ranking breakdown as a transient field.
+	// Surface a "why was this recommended?" entry that pops the per-factor table (no extra request).
+	const recommendationFactors = (props.note as NoteWithRecommendation)._recommendationFactors_;
+	if (recommendationFactors != null) {
+		menuItems.push({
+			icon: 'ti ti-sparkles',
+			text: i18n.ts._recommendations.whyRecommended,
+			action: () => openRecommendationReason(recommendationFactors),
+		}, {
+			icon: 'ti ti-thumb-down',
+			text: i18n.ts._recommendations.notInterested,
+			action: () => {
+				// Strong negative: pushes the interest vector away, records a strong-negative training label,
+				// excludes it from future recommendations — and hides it from the feed right away.
+				misskeyApi('notes/recommendations/not-interested', { noteId: appearNote.id });
+				props.isDeleted.value = true;
+			},
+		}, { type: 'divider' });
+	}
 
 	if ($i) {
 		const statePromise = misskeyApi('notes/state', {

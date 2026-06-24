@@ -86,6 +86,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		to: '/settings/privacy',
 		active: currentPage.value?.route.name === 'privacy',
 	}, {
+		icon: 'ti ti-sparkles',
+		text: i18n.ts._recommendations.title,
+		to: '/settings/recommendations',
+		active: currentPage.value?.route.name === 'recommendations',
+	}, {
 		icon: 'ti ti-bell',
 		text: i18n.ts.notifications,
 		to: '/settings/notifications',

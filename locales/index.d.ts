@@ -13412,6 +13412,436 @@ export interface Locale extends ILocale {
          * Languages (comma-separated)
          */
         "prefillLangs": string;
+        /**
+         * Excluded users
+         */
+        "blockedUsers": string;
+        /**
+         * Users listed here are excluded from the recommendation system entirely: their notes are never embedded, quality-scored, indexed, or surfaced in any recommendation feed. They stop being recommended immediately; any vectors created before they were added become inert.
+         */
+        "blockedUsersDescription": string;
+        /**
+         * One handle per line, e.g. @alice or @bob@remote.example
+         */
+        "blockedUsersCaption": string;
+        /**
+         * Purge excluded users' data now
+         */
+        "purgeBlocked": string;
+        /**
+         * Save the list first, then run this to scan the database and hard-delete any recommendation data (note vectors, author centroids, high-quality-index entries, cached features) created for the excluded users before they were added. This does not happen automatically.
+         */
+        "purgeBlockedDescription": string;
+        /**
+         * Permanently delete all existing recommendation data for the currently-excluded users? Their notes are already excluded from being recommended; this only cleans up leftover stored data and cannot be undone.
+         */
+        "purgeBlockedConfirm": string;
+        /**
+         * Purged {users} user(s): scanned {notes} note(s), removed {hq} high-quality-index entr(ies) and {feat} cached feature(s). Milvus vectors deleted by author.
+         */
+        "purgeBlockedResult": ParameterizedString<"users" | "notes" | "hq" | "feat">;
+    };
+    "_recommendations": {
+        /**
+         * Recommendations
+         */
+        "title": string;
+        /**
+         * Tune how the recommendation feed (the ✨ tab on your timeline and in Explore) picks posts for you.
+         */
+        "about": string;
+        /**
+         * Enable recommendations
+         */
+        "enable": string;
+        /**
+         * When off, the recommendation feed is removed from your timeline and Explore, and all settings below are disabled.
+         */
+        "enableCaption": string;
+        /**
+         * How important are these factors?
+         */
+        "factorsHeader": string;
+        /**
+         * Each slider multiplies how much a factor counts: 0 ignores it, 1 keeps the default, 2 doubles it.
+         */
+        "factorsCaption": string;
+        /**
+         * How your interactions shape your interests
+         */
+        "engagementHeader": string;
+        /**
+         * How strongly each kind of interaction nudges your interest profile toward similar posts. 0 ignores it, 1 is the default.
+         */
+        "engagementCaption": string;
+        /**
+         * Sensitive content
+         */
+        "nsfwHeader": string;
+        /**
+         * Recommend NSFW posts
+         */
+        "recommendNsfw": string;
+        /**
+         * When off, posts with sensitive media are never recommended. Posts with a content warning but no sensitive media are still shown.
+         */
+        "recommendNsfwCaption": string;
+        /**
+         * Topics
+         */
+        "topicsHeader": string;
+        /**
+         * These start from what the recommender detected from your activity. Tap a topic to add it, or tap a selected one to remove it.
+         */
+        "topicsCaption": string;
+        /**
+         * Interested in
+         */
+        "interestedTopics": string;
+        /**
+         * Not interested in
+         */
+        "notInterestedTopics": string;
+        /**
+         * Add topic
+         */
+        "addTopic": string;
+        /**
+         * Not at all important
+         */
+        "notImportant": string;
+        /**
+         * Very important
+         */
+        "veryImportant": string;
+        /**
+         * Why is this post recommended?
+         */
+        "whyRecommended": string;
+        /**
+         * Not interested
+         */
+        "notInterested": string;
+        /**
+         * Configure recommendations
+         */
+        "configure": string;
+        /**
+         * Languages
+         */
+        "languagesHeader": string;
+        /**
+         * Which languages to recommend posts in. Posts from all selected languages are pooled and ranked together. Pick at least one.
+         */
+        "languagesCaption": string;
+        /**
+         * Following mix
+         */
+        "followingHeader": string;
+        /**
+         * What share of the feed is the latest posts from accounts you follow (at most 7 days old, unseen). They're scored and ranked like everything else. 0% = off; 100% = follows only, with discovery filling in only once your follows run out. Skipped automatically if you have no recent follows.
+         */
+        "followingCaption": string;
+        /**
+         * Followed-post share
+         */
+        "followingRatio": string;
+        "_factors": {
+            /**
+             * Relevancy
+             */
+            "relevancy": string;
+            /**
+             * How closely a post's content matches your interests.
+             */
+            "relevancyCaption": string;
+            /**
+             * Author affinity
+             */
+            "authorAffinity": string;
+            /**
+             * Preference for authors whose overall posting style matches your taste.
+             */
+            "authorAffinityCaption": string;
+            /**
+             * Content quality
+             */
+            "quality": string;
+            /**
+             * Favor well-written, substantive posts.
+             */
+            "qualityCaption": string;
+            /**
+             * Popularity
+             */
+            "popularity": string;
+            /**
+             * Favor posts that already got a lot of reactions, replies and boosts.
+             */
+            "popularityCaption": string;
+            /**
+             * Recency
+             */
+            "recency": string;
+            /**
+             * How strongly to prefer newer posts over older ones.
+             */
+            "recencyCaption": string;
+            /**
+             * Short-post penalty
+             */
+            "shortPostPenalty": string;
+            /**
+             * How much to demote very short text posts. Higher pushes them down more.
+             */
+            "shortPostPenaltyCaption": string;
+            /**
+             * Over-tagging penalty
+             */
+            "overTagPenalty": string;
+            /**
+             * How much to demote posts stuffed with many hashtags. Higher pushes them down more.
+             */
+            "overTagPenaltyCaption": string;
+            /**
+             * Reply penalty
+             */
+            "replyPenalty": string;
+            /**
+             * How much to demote standalone replies, which often lack context. Higher pushes them down more.
+             */
+            "replyPenaltyCaption": string;
+            /**
+             * Topic preference
+             */
+            "topicPreference": string;
+            /**
+             * How strongly your liked / disliked topics (below) affect ranking.
+             */
+            "topicPreferenceCaption": string;
+            /**
+             * Followed authors
+             */
+            "followed": string;
+            /**
+             * Extra boost for posts from people you follow.
+             */
+            "followedCaption": string;
+            /**
+             * Similar users
+             */
+            "similarUsers": string;
+            /**
+             * Boost for posts liked by users whose taste resembles yours.
+             */
+            "similarUsersCaption": string;
+        };
+        "_engagement": {
+            /**
+             * Reactions
+             */
+            "reaction": string;
+            /**
+             * Reacting to a post.
+             */
+            "reactionCaption": string;
+            /**
+             * Replies
+             */
+            "reply": string;
+            /**
+             * Replying to a post.
+             */
+            "replyCaption": string;
+            /**
+             * Boosts
+             */
+            "boost": string;
+            /**
+             * Boosting (renoting) a post.
+             */
+            "boostCaption": string;
+            /**
+             * Favorites
+             */
+            "favorite": string;
+            /**
+             * Adding a post to your favorites.
+             */
+            "favoriteCaption": string;
+            /**
+             * Your posts
+             */
+            "post": string;
+            /**
+             * What you post yourself.
+             */
+            "postCaption": string;
+        };
+        "_topics": {
+            /**
+             * Anime
+             */
+            "anime": string;
+            /**
+             * Gaming
+             */
+            "gaming": string;
+            /**
+             * Art
+             */
+            "art": string;
+            /**
+             * Sports
+             */
+            "sports": string;
+            /**
+             * Drawing
+             */
+            "drawing": string;
+            /**
+             * Humor
+             */
+            "humor": string;
+            /**
+             * Tech
+             */
+            "tech": string;
+            /**
+             * Home & living
+             */
+            "home": string;
+            /**
+             * Food
+             */
+            "food": string;
+            /**
+             * Photography
+             */
+            "photography": string;
+            /**
+             * Science
+             */
+            "science": string;
+            /**
+             * Study
+             */
+            "study": string;
+            /**
+             * Travel
+             */
+            "travel": string;
+            /**
+             * Music
+             */
+            "music": string;
+            /**
+             * Culture
+             */
+            "culture": string;
+            /**
+             * Emotion
+             */
+            "emotion": string;
+            /**
+             * Career
+             */
+            "career": string;
+            /**
+             * Social science
+             */
+            "social-science": string;
+            /**
+             * Literature
+             */
+            "literature": string;
+            /**
+             * News
+             */
+            "news": string;
+            /**
+             * Programming
+             */
+            "programming": string;
+            /**
+             * Politics
+             */
+            "politics": string;
+            /**
+             * Pets
+             */
+            "pets": string;
+            /**
+             * Daily life
+             */
+            "daily-life": string;
+        };
+        "_reason": {
+            /**
+             * Final score
+             */
+            "finalScore": string;
+            /**
+             * Subtotal
+             */
+            "subtotal": string;
+            /**
+             * Recommendation type
+             */
+            "recommendationType": string;
+            /**
+             * Following
+             */
+            "typeFollowing": string;
+            /**
+             * Score
+             */
+            "typeScore": string;
+            /**
+             * This post is from an account you follow. It's still scored and ranked like discovery posts.
+             */
+            "followingCaption": string;
+            /**
+             * Inferred topic
+             */
+            "inferredTopic": string;
+            /**
+             * Every factor adds a contribution = score × base × your coefficient (penalties are negative). The contributions sum to the final score.
+             */
+            "intro": string;
+            /**
+             * Factor
+             */
+            "factor": string;
+            /**
+             * Score
+             */
+            "rawScore": string;
+            /**
+             * Base ×
+             */
+            "baseFactor": string;
+            /**
+             * Your ×
+             */
+            "yourCoefficient": string;
+            /**
+             * Total
+             */
+            "effect": string;
+            /**
+             * blended
+             */
+            "kindBlend": string;
+            /**
+             * multiplier
+             */
+            "kindGate": string;
+            /**
+             * bonus
+             */
+            "kindBonus": string;
+        };
     };
 }
 declare const locales: {

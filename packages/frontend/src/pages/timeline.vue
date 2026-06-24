@@ -244,8 +244,15 @@ function closeTutorial(): void {
 	store.set('timelineTutorials', before);
 }
 
+// Recommendations can be switched off per-user in settings; when off, the feed/tab is removed entirely.
+const recommendationsEnabled = computed(() => $i?.recommendationSettings?.enabled !== false);
+
 function switchTlIfNeeded() {
 	if (isBasicTimeline(src.value) && !isAvailableBasicTimeline(src.value)) {
+		src.value = availableBasicTimelines()[0];
+	}
+	// If the user disabled recommendations while parked on that tab, fall back to a normal timeline.
+	if (src.value === 'recommendation' && !recommendationsEnabled.value) {
 		src.value = availableBasicTimelines()[0];
 	}
 }
@@ -297,6 +304,14 @@ const headerActions = computed(() => {
 					disabled: isBasicTimeline(src.value) && hasWithReplies(src.value) ? withReplies : false,
 				});
 
+				if (recommendationsEnabled.value) {
+					menuItems.push({ type: 'divider' }, {
+						icon: 'ti ti-sparkles',
+						text: i18n.ts._recommendations.configure,
+						action: () => router.push('/settings/recommendations'),
+					});
+				}
+
 				os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
 			},
 		},
@@ -325,9 +340,12 @@ const basicTimelineTabs = computed(() => {
 		iconOnly: true,
 	} as Tab));
 	// Recommendation feed: to the right of "social", before "global". No description (it's icon-only).
-	const recTab: Tab = { key: 'recommendation', title: i18n.ts.recommendations, icon: 'ti ti-sparkles', iconOnly: true };
-	const socialIdx = tabs.findIndex(t => t.key === 'social');
-	tabs.splice(socialIdx >= 0 ? socialIdx + 1 : tabs.length, 0, recTab);
+	// Hidden entirely when the user has switched recommendations off in settings.
+	if (recommendationsEnabled.value) {
+		const recTab: Tab = { key: 'recommendation', title: i18n.ts.recommendations, icon: 'ti ti-sparkles', iconOnly: true };
+		const socialIdx = tabs.findIndex(t => t.key === 'social');
+		tabs.splice(socialIdx >= 0 ? socialIdx + 1 : tabs.length, 0, recTab);
+	}
 	return tabs;
 });
 
