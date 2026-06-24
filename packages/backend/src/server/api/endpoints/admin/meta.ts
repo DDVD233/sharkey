@@ -493,6 +493,25 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			recommendationBlockedUsers: {
+				type: 'array',
+				optional: false, nullable: false,
+				items: {
+					type: 'string',
+				},
+			},
+			recommendationRankerModel: {
+				type: 'object',
+				optional: false, nullable: true,
+			},
+			recommendationRankerWeight: {
+				type: 'number',
+				optional: false, nullable: false,
+			},
+			recommendationEngagementValues: {
+				type: 'object',
+				optional: false, nullable: false,
+			},
 			enableSpamFilter: {
 				type: 'boolean',
 				optional: false, nullable: false,
@@ -771,6 +790,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				llmTranslateModel: instance.llmTranslateModel,
 				llmTranslatePrompt: instance.llmTranslatePrompt,
 				llmQualityPrompt: instance.llmQualityPrompt,
+				recommendationBlockedUsers: instance.recommendationBlockedUsers,
+				recommendationRankerModel: instance.recommendationRankerModel,
+				recommendationRankerWeight: instance.recommendationRankerWeight,
+				recommendationEngagementValues: instance.recommendationEngagementValues,
 				enableSpamFilter: instance.enableSpamFilter,
 				enableLlmTranslation: instance.enableLlmTranslation,
 				enableIpLogging: instance.enableIpLogging,

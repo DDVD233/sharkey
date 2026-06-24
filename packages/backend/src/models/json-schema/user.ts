@@ -4,6 +4,74 @@
  */
 
 import { userUnsignedFetchOptions } from '@/const.js';
+import { TOPIC_LABELS } from '@/core/rec-topics.js';
+import { REC_LANGUAGES } from '@/core/rec-settings.js';
+
+const recCoefficient = { type: 'number', nullable: false, minimum: 0, maximum: 2 } as const;
+const recTopicList = {
+	type: 'array',
+	nullable: false,
+	maxItems: TOPIC_LABELS.length,
+	items: { type: 'string', nullable: false, enum: [...TOPIC_LABELS] },
+} as const;
+
+/**
+ * Per-user recommendation settings. Shared by the `i/update` param (partial accepted; server clamps and
+ * sanitizes via `mergeRecSettings`) and the `MeDetailed` response (always a full object). Coefficients are
+ * 0..2 multipliers on the global scoring constants; topic lists are constrained to the known taxonomy.
+ */
+export const recommendationSettings = {
+	type: 'object',
+	nullable: false,
+	properties: {
+		enabled: { type: 'boolean', nullable: false },
+		recommendNsfw: { type: 'boolean', nullable: false },
+		factors: {
+			type: 'object',
+			nullable: false,
+			properties: {
+				relevancy: recCoefficient,
+				authorAffinity: recCoefficient,
+				quality: recCoefficient,
+				popularity: recCoefficient,
+				recency: recCoefficient,
+				shortPostPenalty: recCoefficient,
+				overTagPenalty: recCoefficient,
+				replyPenalty: recCoefficient,
+				topicPreference: recCoefficient,
+				followed: recCoefficient,
+				similarUsers: recCoefficient,
+			},
+		},
+		engagement: {
+			type: 'object',
+			nullable: false,
+			properties: {
+				reaction: recCoefficient,
+				reply: recCoefficient,
+				boost: recCoefficient,
+				favorite: recCoefficient,
+				post: recCoefficient,
+			},
+		},
+		interestTopics: recTopicList,
+		disinterestTopics: recTopicList,
+		languages: {
+			type: 'array',
+			nullable: false,
+			minItems: 1,
+			maxItems: REC_LANGUAGES.length,
+			uniqueItems: true,
+			items: { type: 'string', nullable: false, enum: [...REC_LANGUAGES] },
+		},
+		followedRatio: {
+			type: 'number',
+			nullable: false,
+			minimum: 0,
+			maximum: 1,
+		},
+	},
+} as const;
 
 export const notificationRecieveConfig = {
 	type: 'object',
@@ -710,6 +778,10 @@ export const packedMeDetailedOnlySchema = {
 				type: 'string',
 				nullable: false, optional: false,
 			},
+		},
+		recommendationSettings: {
+			...recommendationSettings,
+			optional: false, nullable: false,
 		},
 		achievements: {
 			type: 'array',

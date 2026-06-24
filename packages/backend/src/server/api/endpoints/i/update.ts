@@ -32,7 +32,8 @@ import type { Config } from '@/config.js';
 import { safeForSql } from '@/misc/safe-for-sql.js';
 import { verifyFieldLinks } from '@/misc/verify-field-link.js';
 import { AvatarDecorationService } from '@/core/AvatarDecorationService.js';
-import { notificationRecieveConfig } from '@/models/json-schema/user.js';
+import { notificationRecieveConfig, recommendationSettings } from '@/models/json-schema/user.js';
+import { mergeRecSettings } from '@/core/rec-settings.js';
 import { userUnsignedFetchOptions } from '@/const.js';
 import { renderInlineError } from '@/misc/render-inline-error.js';
 import { ApiLoggerService } from '../../ApiLoggerService.js';
@@ -141,6 +142,13 @@ export const meta = {
 			code: 'MAX_CW_LENGTH',
 			id: '7004c478-bda3-4b4f-acb2-4316398c9d52',
 		},
+
+		overlappingRecommendationTopics: {
+			message: 'A topic cannot be in both the interested and not-interested lists.',
+			code: 'OVERLAPPING_RECOMMENDATION_TOPICS',
+			id: 'a7f1d3e2-5c6b-4a8e-9f0d-1b2c3d4e5f60',
+			httpStatusCode: 422,
+		},
 	},
 
 	res: {
@@ -244,6 +252,7 @@ export const paramDef = {
 				test: notificationRecieveConfig,
 			},
 		},
+		recommendationSettings: recommendationSettings,
 		emailNotificationTypes: { type: 'array', items: {
 			type: 'string',
 		} },
@@ -383,6 +392,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 			if (ps.mutedInstances !== undefined) profileUpdates.mutedInstances = ps.mutedInstances;
 			if (ps.notificationRecieveConfig !== undefined) profileUpdates.notificationRecieveConfig = ps.notificationRecieveConfig;
+			if (ps.recommendationSettings !== undefined) {
+				const rs = ps.recommendationSettings;
+				// Reject an explicit interest/disinterest overlap (the client guards this; this is the server net).
+				if (Array.isArray(rs.interestTopics) && Array.isArray(rs.disinterestTopics)) {
+					const interest = new Set(rs.interestTopics);
+					if (rs.disinterestTopics.some(t => interest.has(t))) throw new ApiError(meta.errors.overlappingRecommendationTopics);
+				}
+				// Store a fully sanitized object (coefficients clamped, topics filtered to the taxonomy).
+				profileUpdates.recommendationSettings = mergeRecSettings(rs);
+			}
 			if (ps.attributionDomains !== undefined) updates.attributionDomains = ps.attributionDomains;
 			if (typeof ps.isLocked === 'boolean') updates.isLocked = ps.isLocked;
 			if (typeof ps.isExplorable === 'boolean') updates.isExplorable = ps.isExplorable;

@@ -116,6 +116,14 @@ export const paramDef = {
 		llmTranslateModel: { type: 'string', nullable: true },
 		llmTranslatePrompt: { type: 'string', nullable: true },
 		llmQualityPrompt: { type: 'string', nullable: true },
+		recommendationBlockedUsers: {
+			type: 'array', nullable: true, items: {
+				type: 'string',
+			},
+		},
+		recommendationRankerModel: { type: 'object', nullable: true },
+		recommendationRankerWeight: { type: 'number', nullable: true },
+		recommendationEngagementValues: { type: 'object', nullable: true },
 		enableEmail: { type: 'boolean' },
 		email: { type: 'string', nullable: true },
 		smtpSecure: { type: 'boolean' },
@@ -679,6 +687,29 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				} else {
 					set.llmQualityPrompt = ps.llmQualityPrompt;
 				}
+			}
+
+			if (Array.isArray(ps.recommendationBlockedUsers)) {
+				// Normalize to bare `username` / `username@host` handles (drop a leading '@', trim, dedupe).
+				set.recommendationBlockedUsers = [...new Set(
+					ps.recommendationBlockedUsers
+						.map(h => h.trim().replace(/^@/, ''))
+						.filter(h => h.length > 0),
+				)];
+			}
+
+			// Learned-ranker model JSON (written by the offline learner; pasted/posted by an admin). An
+			// explicit null clears it (revert to the hand-tuned score). Stored verbatim; the serve path
+			// validates/parses it defensively via parseRankerModel.
+			if (ps.recommendationRankerModel !== undefined) {
+				set.recommendationRankerModel = ps.recommendationRankerModel;
+			}
+			if (ps.recommendationRankerWeight !== undefined && ps.recommendationRankerWeight !== null) {
+				// Clamp the blend ramp to [0,1].
+				set.recommendationRankerWeight = Math.max(0, Math.min(1, ps.recommendationRankerWeight));
+			}
+			if (ps.recommendationEngagementValues !== undefined && ps.recommendationEngagementValues !== null) {
+				set.recommendationEngagementValues = ps.recommendationEngagementValues;
 			}
 
 			if (ps.enableIpLogging !== undefined) {

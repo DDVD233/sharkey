@@ -5,6 +5,7 @@
 
 import { Entity, Column, Index, OneToOne, JoinColumn, PrimaryColumn } from 'typeorm';
 import { obsoleteNotificationTypes, followingVisibilities, followersVisibilities, notificationTypes, defaultCWPriorities } from '@/types.js';
+import { type RecommendationSettings } from '@/core/rec-settings.js';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 import { MiPage } from './Page.js';
@@ -304,6 +305,12 @@ export class MiUserProfile {
 		default: 'parent',
 	})
 	public defaultCWPriority: typeof defaultCWPriorities[number];
+
+	@Column('jsonb', {
+		nullable: true,
+		comment: 'Per-user recommendation tuning (factor coefficients, engagement weights, NSFW toggle, interest/disinterest topics). null = all defaults.',
+	})
+	public recommendationSettings: Partial<RecommendationSettings> | null;
 
 	//#region Denormalized fields
 	@Index()

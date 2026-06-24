@@ -460,6 +460,30 @@ export class MiMeta {
 	public llmQualityPrompt: string | null;
 
 	@Column('varchar', {
+		length: 1024, array: true, default: '{}',
+		comment: 'Acct handles (e.g. @alice, @bob@host) of users excluded entirely from the recommendation system: their notes are never embedded, quality-scored, indexed, or surfaced in any recommendation feed.',
+	})
+	public recommendationBlockedUsers: string[];
+
+	@Column('jsonb', {
+		nullable: true,
+		comment: 'Trained learned-ranker model (per-engagement logistic heads), written by the offline learner; null = use the hand-tuned score.',
+	})
+	public recommendationRankerModel: Record<string, any> | null; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+	@Column('double precision', {
+		default: 0,
+		comment: 'Blend λ ∈ [0,1] ramping the hand-tuned score (0) toward the learned ranker (1) via rank fusion.',
+	})
+	public recommendationRankerWeight: number;
+
+	@Column('jsonb', {
+		default: {},
+		comment: 'Per-engagement product value weights for the learned ranker (reply ≫ like, dislike strongly negative); empty = in-source defaults.',
+	})
+	public recommendationEngagementValues: Record<string, number>;
+
+	@Column('varchar', {
 		length: 1024,
 		nullable: true,
 	})
