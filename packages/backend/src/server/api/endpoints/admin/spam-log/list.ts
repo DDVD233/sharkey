@@ -4,10 +4,11 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { In } from 'typeorm';
+import { In, Brackets } from 'typeorm';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { SpamLogsRepository, NotesRepository, UsersRepository, DriveFilesRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
+import { sqlLikeEscape } from '@/misc/sql-like-escape.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -22,6 +23,8 @@ export const paramDef = {
 	properties: {
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
 		page: { type: 'integer', minimum: 0, default: 0 },
+		origin: { type: 'string', enum: ['combined', 'local', 'remote'], default: 'local' },
+		query: { type: 'string', nullable: true, default: null },
 	},
 	required: [],
 } as const;
@@ -43,8 +46,28 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps) => {
 			// Only note strikes (skip profile strikes for now).
-			const [logs, count] = await this.spamLogsRepository.createQueryBuilder('s')
-				.where('s.noteId IS NOT NULL')
+			const qb = this.spamLogsRepository.createQueryBuilder('s')
+				.leftJoin('s.user', 'u')
+				.where('s.noteId IS NOT NULL');
+
+			switch (ps.origin) {
+				case 'local': qb.andWhere('s.userHost IS NULL'); break;
+				case 'remote': qb.andWhere('s.userHost IS NOT NULL'); break;
+				// 'combined': no host filter.
+			}
+
+			const query = ps.query?.trim();
+			if (query) {
+				// Accept a raw note ID, a user ID, or a (possibly @-prefixed) username.
+				const username = query.replace(/^@/, '').split('@')[0];
+				qb.andWhere(new Brackets(b => {
+					b.where('u.usernameLower LIKE :username', { username: sqlLikeEscape(username.toLowerCase()) + '%' })
+						.orWhere('s.noteId = :id', { id: query })
+						.orWhere('s.userId = :id', { id: query });
+				}));
+			}
+
+			const [logs, count] = await qb
 				.orderBy('s.createdAt', 'DESC')
 				.skip(ps.page * ps.limit)
 				.take(ps.limit)

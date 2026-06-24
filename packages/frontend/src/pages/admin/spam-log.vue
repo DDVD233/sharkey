@@ -9,6 +9,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps">
 			<MkInfo>Posts automatically hidden by the spam filter. Restoring makes a post public again and removes it from this list.</MkInfo>
 
+			<div :class="$style.filters">
+				<MkSelect v-model="origin" :class="$style.filterItem">
+					<template #label>{{ i18n.ts.instance }}</template>
+					<option value="local">{{ i18n.ts.local }}</option>
+					<option value="remote">{{ i18n.ts.remote }}</option>
+					<option value="combined">{{ i18n.ts.all }}</option>
+				</MkSelect>
+				<MkInput v-model="search" :class="$style.filterItem" type="search" :spellcheck="false" debounce>
+					<template #label>{{ i18n.ts.search }}</template>
+					<template #prefix><i class="ti ti-search"></i></template>
+					<template #caption>Note ID, user ID, or username</template>
+				</MkInput>
+			</div>
+
 			<div :class="$style.bar">
 				<div>{{ count }} moderated post(s)</div>
 				<MkButton small rounded @click="reload"><i class="ti ti-refresh"></i> Reload</MkButton>
@@ -55,9 +69,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
+import MkSelect from '@/components/MkSelect.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
@@ -87,17 +102,25 @@ const count = ref(0);
 const page = ref(0);
 const jumpTo = ref(1);
 const fetching = ref(true);
+const origin = ref<'combined' | 'local' | 'remote'>('local');
+const search = ref('');
 
 const totalPages = computed(() => Math.max(1, Math.ceil(count.value / LIMIT)));
 
 async function load() {
 	fetching.value = true;
-	const res = await misskeyApi('admin/spam-log/list' as any, { limit: LIMIT, page: page.value }) as { count: number; items: SpamLogItem[] };
+	const res = await misskeyApi('admin/spam-log/list' as any, { limit: LIMIT, page: page.value, origin: origin.value, query: search.value || null }) as { count: number; items: SpamLogItem[] };
 	count.value = res.count;
 	items.value = res.items;
 	jumpTo.value = page.value + 1;
 	fetching.value = false;
 }
+
+// Changing a filter resets to the first page.
+watch([origin, search], () => {
+	page.value = 0;
+	load();
+});
 
 function goto(p: number) {
 	const target = Math.min(totalPages.value - 1, Math.max(0, isNaN(p) ? 0 : p));
@@ -138,6 +161,17 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.filters {
+	display: flex;
+	gap: var(--MI-margin);
+	flex-wrap: wrap;
+	align-items: flex-end;
+}
+.filterItem {
+	flex: 1;
+	min-width: 200px;
+	margin: 0;
+}
 .bar {
 	display: flex;
 	align-items: center;
