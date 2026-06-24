@@ -7,8 +7,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <Transition :name="prefer.s.animation ? '_transition_zoom' : ''" appear>
 	<div :class="$style.root">
 		<img :class="$style.img" :src="serverErrorImageUrl" draggable="false"/>
-		<p :class="$style.text"><i class="ti ti-alert-triangle"></i> {{ i18n.ts.somethingHappened }}</p>
-		<MkButton :class="$style.button" @click="() => emit('retry')">{{ i18n.ts.retry }}</MkButton>
+		<p :class="$style.text"><i class="ti ti-alert-triangle"></i> {{ message ?? i18n.ts.somethingHappened }}</p>
+		<MkButton v-if="retryable" :class="$style.button" @click="() => emit('retry')">{{ i18n.ts.retry }}</MkButton>
 	</div>
 </Transition>
 </template>
@@ -18,6 +18,14 @@ import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { serverErrorImageUrl } from '@/instance.js';
+
+withDefaults(defineProps<{
+	message?: string | null;
+	retryable?: boolean;
+}>(), {
+	message: null,
+	retryable: true,
+});
 
 const emit = defineEmits<{
 	(ev: 'retry'): void;

@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkNotes class="" :pagination="showPrev === 'channel' ? prevChannelPagination : prevUserPagination" :noGap="true"/>
 					</div>
 				</div>
-				<MkError v-else-if="error" @retry="fetchNote()"/>
+				<MkError v-else-if="error" :message="errorMessage" :retryable="errorMessage == null" @retry="fetchNote()"/>
 				<MkLoading v-else/>
 			</Transition>
 		</div>
@@ -82,6 +82,14 @@ const showPrev = ref<'user' | 'channel' | false>(false);
 const showNext = ref<'user' | 'channel' | false>(false);
 const expandAllCws = ref(false);
 const error = ref();
+
+const errorMessage = computed(() => {
+	// FOLLOWERS_ONLY from notes/show
+	if (error.value?.id === '889fca7e-d028-47a8-8c17-e2960ac10996') {
+		return i18n.ts.followersOnlyNoteError;
+	}
+	return null;
+});
 
 const prevUserPagination: Paging = {
 	endpoint: 'users/notes',

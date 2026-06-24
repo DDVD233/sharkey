@@ -29,6 +29,14 @@ export const meta = {
 			id: '24fcbfc6-2e37-42b6-8388-c29b3861a08d',
 		},
 
+		followersOnly: {
+			message: 'This note is only visible to the author\'s followers.',
+			code: 'FOLLOWERS_ONLY',
+			id: '889fca7e-d028-47a8-8c17-e2960ac10996',
+			kind: 'permission',
+			httpStatusCode: 403,
+		},
+
 		signinRequired: {
 			message: 'Signin required.',
 			code: 'SIGNIN_REQUIRED',
@@ -73,6 +81,22 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const note = await query.getOne();
 
 			if (note === null) {
+				// The note may exist but be hidden from the viewer. Re-check existence
+				// honoring blocks (so blocked notes stay indistinguishable from deleted
+				// ones) but ignoring visibility, so we can return a clearer error for
+				// followers-only notes the viewer isn't allowed to see (e.g. a boost
+				// federated as followers-only).
+				const hiddenQuery = this.notesRepository.createQueryBuilder('note')
+					.where('note.id = :noteId', { noteId: ps.noteId });
+				if (me) {
+					this.queryService.generateBlockedUserQueryForNotes(hiddenQuery, me);
+				}
+				const hiddenNote = await hiddenQuery.getOne();
+
+				if (hiddenNote !== null && hiddenNote.visibility === 'followers') {
+					throw new ApiError(meta.errors.followersOnly);
+				}
+
 				throw new ApiError(meta.errors.noSuchNote);
 			}
 

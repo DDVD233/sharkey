@@ -2,6 +2,7 @@
 driveFilesDeleteConfirm: "確定要刪除這 {count} 個項目嗎？"
 driveFilesDownloadConfirm: "確定要下載這 {count} 個檔案嗎？"
 driveDownloadTooMany: "一次最多只能下載 3 個檔案。"
+followersOnlyNoteError: "這則貼文僅對發文者的追隨者可見。"
 disableDrawer: "不顯示下拉式選單"
 forwardReport: "將報告轉送給遠端伺服器"
 forwardReportIsAnonymous: "在遠端實例上看不到您的資訊，顯示的報告者是匿名的系统帳戶。"

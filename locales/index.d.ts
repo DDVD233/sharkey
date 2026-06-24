@@ -11987,6 +11987,10 @@ export interface Locale extends ILocale {
      */
     "driveDownloadTooMany": string;
     /**
+     * This note is only visible to the author's followers.
+     */
+    "followersOnlyNoteError": string;
+    /**
      * Approvals
      */
     "approvals": string;
