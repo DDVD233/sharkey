@@ -212,9 +212,10 @@ export class QueueService {
 	}
 
 	@bindThis
-	public createEmbedNoteJob(noteId: MiNote['id']) {
-		return this.embedQueue.add('embed', { noteId }, {
-			jobId: `embed:${noteId}`,
+	public createEmbedNoteJob(noteId: MiNote['id'], force = false) {
+		return this.embedQueue.add('embed', { noteId, force }, {
+			// Force jobs get their own id so they aren't deduped against (or skipped by) a normal embed.
+			jobId: force ? `embed:${noteId}:force` : `embed:${noteId}`,
 			removeOnComplete: true,
 			removeOnFail: 100,
 			attempts: 3,

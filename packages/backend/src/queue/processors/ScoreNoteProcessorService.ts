@@ -54,6 +54,10 @@ export class ScoreNoteProcessorService {
 		const lang = this.recommendationService.normalizeLang(note.lang);
 		if (lang == null || !this.supportedLangs.has(lang)) return;
 
+		// Authors on the admin recommendation blocklist are excluded entirely: never quality-score or
+		// index their notes (so they never enter the high-quality discovery pool).
+		if (await this.recommendationService.isAuthorBlocked(note.userId)) return;
+
 		// Multimodal notes are scored on text + image together (same downscaled images the embed job
 		// uses). recordNoteFeatures is best-effort and never throws.
 		const images = await this.recMediaService.loadDownscaledImageDataUrls(note.fileIds);

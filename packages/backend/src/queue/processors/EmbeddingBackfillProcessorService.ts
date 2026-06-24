@@ -17,7 +17,7 @@ import { QueueLoggerService } from '../QueueLoggerService.js';
 
 // How far back to look for notes that may have missed embedding (e.g. while the service was down).
 const BACKFILL_WINDOW_MS = 1000 * 60 * 90; // 90 minutes
-const DEFAULT_RETENTION_DAYS = 60; // purge note vectors older than ~2 months by default
+const DEFAULT_RETENTION_DAYS = 14; // purge note vectors older than 2 weeks (keeps Milvus small/fast; the rec feed is freshness-biased, so older vectors aren't retrieved anyway)
 const MAX_BACKFILL = 1000;
 
 /**

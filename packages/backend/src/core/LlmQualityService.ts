@@ -8,10 +8,13 @@ import { DI } from '@/di-symbols.js';
 import type { MiMeta } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import { TOPIC_SYSTEM_PROMPT, TOPIC_FALLBACK, parseTopic, type Topic } from '@/core/rec-topics.js';
 import type Logger from '@/logger.js';
 
 // The model only ever emits a single digit, so we never need more than a couple of tokens.
 const MAX_TOKENS = 2;
+// Topic labels are a few characters but can be multi-token (e.g. 新闻/时事); give enough room for the label.
+const TOPIC_MAX_TOKENS = 16;
 const MAX_ATTEMPTS = 2;
 // Cap the text we send: quality is judged on the gist, not the whole essay, and short prompts keep
 // the per-note cost low.
@@ -43,6 +46,12 @@ export class LlmQualityService {
 	// lives only in instance settings (the DB), never in source, so it isn't part of the public release.
 	public get enabled(): boolean {
 		return !!this.serverSettings.llmTranslateURL && !!this.serverSettings.llmQualityPrompt;
+	}
+
+	// Topic classification only needs the shared LLM endpoint — its prompt/taxonomy live in source
+	// (the taxonomy isn't secret), unlike the quality prompt which is admin-configured.
+	public get topicEnabled(): boolean {
+		return !!this.serverSettings.llmTranslateURL;
 	}
 
 	/**
@@ -99,6 +108,66 @@ export class LlmQualityService {
 			} catch (e) {
 				if (attempt >= MAX_ATTEMPTS) {
 					this.logger.warn(`quality scoring failed: ${e instanceof Error ? e.message : String(e)}`);
+					return null;
+				}
+				await new Promise(resolve => setTimeout(resolve, 1500 + Math.floor(Math.random() * 1500)));
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Assigns a single topic (canonical label from the fixed taxonomy) to a post, or null if
+	 * unavailable/unparseable. Multimodal like {@link scoreNote}: image posts are classified on
+	 * text + image together. The caller decides how to treat null (e.g. residual-bucket fallback).
+	 */
+	@bindThis
+	public async classifyTopic(text: string, imageDataUrls: string[]): Promise<Topic | null> {
+		const baseUrl = this.serverSettings.llmTranslateURL;
+		if (!baseUrl) return null;
+
+		const trimmed = (text ?? '').slice(0, MAX_TEXT_CHARS);
+		const instruction = `帖子内容：\n\n${trimmed}\n\n主题：`;
+		const userMessageContent = imageDataUrls.length > 0
+			? [...imageDataUrls.map(url => ({ type: 'image_url', image_url: { url } })), { type: 'text', text: instruction }]
+			: instruction;
+
+		const endpoint = this.resolveLlmEndpoint(baseUrl);
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			Accept: 'application/json, */*',
+			...(this.serverSettings.llmTranslateKey ? { Authorization: `Bearer ${this.serverSettings.llmTranslateKey}` } : {}),
+		};
+		const requestBody = JSON.stringify({
+			model: this.serverSettings.llmTranslateModel ?? '',
+			messages: [
+				{ role: 'system', content: TOPIC_SYSTEM_PROMPT },
+				{ role: 'user', content: userMessageContent },
+			],
+			temperature: 0,
+			max_tokens: TOPIC_MAX_TOKENS,
+			stream: false,
+			chat_template_kwargs: { enable_thinking: false },
+		});
+
+		for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+			try {
+				const res = await fetch(endpoint, {
+					method: 'POST',
+					headers,
+					body: requestBody,
+					signal: AbortSignal.timeout(this.serverSettings.translationTimeout),
+				});
+				if (!res.ok) throw new Error(`LLM server returned HTTP ${res.status}`);
+				const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+				const raw = json.choices?.[0]?.message?.content ?? '';
+				// Successful response: map to a label, falling back to the residual bucket when the model
+				// emits something unrecognized — so we persist a result and never re-classify this note.
+				// (null is reserved for request failures, which the caller leaves for a later retry.)
+				return parseTopic(raw) ?? TOPIC_FALLBACK;
+			} catch (e) {
+				if (attempt >= MAX_ATTEMPTS) {
+					this.logger.warn(`topic classification failed: ${e instanceof Error ? e.message : String(e)}`);
 					return null;
 				}
 				await new Promise(resolve => setTimeout(resolve, 1500 + Math.floor(Math.random() * 1500)));

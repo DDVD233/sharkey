@@ -28,6 +28,7 @@ export const DI = {
 	apInboxLogsRepository: Symbol('apInboxLogsRepository'),
 	noteFavoritesRepository: Symbol('noteFavoritesRepository'),
 	noteRecommendationImpressionsRepository: Symbol('noteRecommendationImpressionsRepository'),
+	noteTopicsRepository: Symbol('noteTopicsRepository'),
 	noteThreadMutingsRepository: Symbol('noteThreadMutingsRepository'),
 	noteReactionsRepository: Symbol('noteReactionsRepository'),
 	pollsRepository: Symbol('pollsRepository'),

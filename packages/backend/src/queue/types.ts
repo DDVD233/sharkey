@@ -174,6 +174,9 @@ export type CsamCheckJobData = {
 
 export type EmbedNoteJobData = {
 	noteId: MiNote['id'];
+	/** Force embedding even if the note is below retrieval quality / unsupported-lang — used when a local
+	 * user explicitly engaged with it, so their like always feeds their interest vector. */
+	force?: boolean;
 };
 
 export type ScoreNoteJobData = {
