@@ -95,13 +95,20 @@ import type {
 	AdminQueueRetryJobRequest,
 	AdminQueueShowJobRequest,
 	AdminQueueStatsResponse,
+	AdminRecommendationBackfillAuthorEmbeddingsRequest,
+	AdminRecommendationBackfillAuthorEmbeddingsResponse,
 	AdminRecommendationBackfillHistoryRequest,
 	AdminRecommendationBackfillHistoryResponse,
 	AdminRecommendationBackfillQualityRequest,
 	AdminRecommendationBackfillQualityResponse,
+	AdminRecommendationBackfillTopicsRequest,
+	AdminRecommendationBackfillTopicsResponse,
 	AdminRecommendationPrefillRequest,
 	AdminRecommendationPrefillResponse,
+	AdminRecommendationPurgeBlockedResponse,
 	AdminRecommendationRebuildUserVectorsResponse,
+	AdminRecommendationReindexQualityRequest,
+	AdminRecommendationReindexQualityResponse,
 	AdminRecommendationStatsRequest,
 	AdminRecommendationStatsResponse,
 	AdminRejectQuotesRequest,
@@ -453,6 +460,7 @@ import type {
 	IPinRequest,
 	IPinResponse,
 	IReadAnnouncementRequest,
+	IRecommendationInterestsResponse,
 	IRegenerateTokenRequest,
 	IRegistryGetRequest,
 	IRegistryGetResponse,
@@ -540,6 +548,10 @@ import type {
 	NotesReactionsDeleteRequest,
 	NotesRecommendationsRequest,
 	NotesRecommendationsResponse,
+	NotesRecommendationsDwellRequest,
+	NotesRecommendationsDwellResponse,
+	NotesRecommendationsNotInterestedRequest,
+	NotesRecommendationsNotInterestedResponse,
 	NotesRenotesRequest,
 	NotesRenotesResponse,
 	NotesRepliesRequest,
@@ -755,10 +767,14 @@ export type Endpoints = {
 	'admin/queue/retry-job': { req: AdminQueueRetryJobRequest; res: EmptyResponse };
 	'admin/queue/show-job': { req: AdminQueueShowJobRequest; res: EmptyResponse };
 	'admin/queue/stats': { req: EmptyRequest; res: AdminQueueStatsResponse };
+	'admin/recommendation/backfill-author-embeddings': { req: AdminRecommendationBackfillAuthorEmbeddingsRequest; res: AdminRecommendationBackfillAuthorEmbeddingsResponse };
 	'admin/recommendation/backfill-history': { req: AdminRecommendationBackfillHistoryRequest; res: AdminRecommendationBackfillHistoryResponse };
 	'admin/recommendation/backfill-quality': { req: AdminRecommendationBackfillQualityRequest; res: AdminRecommendationBackfillQualityResponse };
+	'admin/recommendation/backfill-topics': { req: AdminRecommendationBackfillTopicsRequest; res: AdminRecommendationBackfillTopicsResponse };
 	'admin/recommendation/prefill': { req: AdminRecommendationPrefillRequest; res: AdminRecommendationPrefillResponse };
+	'admin/recommendation/purge-blocked': { req: EmptyRequest; res: AdminRecommendationPurgeBlockedResponse };
 	'admin/recommendation/rebuild-user-vectors': { req: EmptyRequest; res: AdminRecommendationRebuildUserVectorsResponse };
+	'admin/recommendation/reindex-quality': { req: AdminRecommendationReindexQualityRequest; res: AdminRecommendationReindexQualityResponse };
 	'admin/recommendation/stats': { req: AdminRecommendationStatsRequest; res: AdminRecommendationStatsResponse };
 	'admin/reject-quotes': { req: AdminRejectQuotesRequest; res: EmptyResponse };
 	'admin/relays/add': { req: AdminRelaysAddRequest; res: AdminRelaysAddResponse };
@@ -988,6 +1004,7 @@ export type Endpoints = {
 	'i/pages': { req: IPagesRequest; res: IPagesResponse };
 	'i/pin': { req: IPinRequest; res: IPinResponse };
 	'i/read-announcement': { req: IReadAnnouncementRequest; res: EmptyResponse };
+	'i/recommendation-interests': { req: EmptyRequest; res: IRecommendationInterestsResponse };
 	'i/regenerate-token': { req: IRegenerateTokenRequest; res: EmptyResponse };
 	'i/registry/get': { req: IRegistryGetRequest; res: IRegistryGetResponse };
 	'i/registry/get-all': { req: IRegistryGetAllRequest; res: IRegistryGetAllResponse };
@@ -1043,6 +1060,8 @@ export type Endpoints = {
 	'notes/reactions/create': { req: NotesReactionsCreateRequest; res: EmptyResponse };
 	'notes/reactions/delete': { req: NotesReactionsDeleteRequest; res: EmptyResponse };
 	'notes/recommendations': { req: NotesRecommendationsRequest; res: NotesRecommendationsResponse };
+	'notes/recommendations/dwell': { req: NotesRecommendationsDwellRequest; res: NotesRecommendationsDwellResponse };
+	'notes/recommendations/not-interested': { req: NotesRecommendationsNotInterestedRequest; res: NotesRecommendationsNotInterestedResponse };
 	'notes/renotes': { req: NotesRenotesRequest; res: NotesRenotesResponse };
 	'notes/replies': { req: NotesRepliesRequest; res: NotesRepliesResponse };
 	'notes/schedule/create': { req: NotesScheduleCreateRequest; res: EmptyResponse };

@@ -693,6 +693,15 @@ export type paths = {
      */
     post: operations['admin___queue___stats'];
   };
+  '/admin/recommendation/backfill-author-embeddings': {
+    /**
+     * admin/recommendation/backfill-author-embeddings
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    post: operations['admin___recommendation___backfill-author-embeddings'];
+  };
   '/admin/recommendation/backfill-history': {
     /**
      * admin/recommendation/backfill-history
@@ -711,6 +720,15 @@ export type paths = {
      */
     post: operations['admin___recommendation___backfill-quality'];
   };
+  '/admin/recommendation/backfill-topics': {
+    /**
+     * admin/recommendation/backfill-topics
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    post: operations['admin___recommendation___backfill-topics'];
+  };
   '/admin/recommendation/prefill': {
     /**
      * admin/recommendation/prefill
@@ -720,6 +738,15 @@ export type paths = {
      */
     post: operations['admin___recommendation___prefill'];
   };
+  '/admin/recommendation/purge-blocked': {
+    /**
+     * admin/recommendation/purge-blocked
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    post: operations['admin___recommendation___purge-blocked'];
+  };
   '/admin/recommendation/rebuild-user-vectors': {
     /**
      * admin/recommendation/rebuild-user-vectors
@@ -728,6 +755,15 @@ export type paths = {
      * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
      */
     post: operations['admin___recommendation___rebuild-user-vectors'];
+  };
+  '/admin/recommendation/reindex-quality': {
+    /**
+     * admin/recommendation/reindex-quality
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+     */
+    post: operations['admin___recommendation___reindex-quality'];
   };
   '/admin/recommendation/stats': {
     /**
@@ -2967,6 +3003,15 @@ export type paths = {
      */
     post: operations['i___read-announcement'];
   };
+  '/i/recommendation-interests': {
+    /**
+     * i/recommendation-interests
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    post: operations['i___recommendation-interests'];
+  };
   '/i/regenerate-token': {
     /**
      * i/regenerate-token
@@ -3489,6 +3534,24 @@ export type paths = {
      * **Credential required**: *No*
      */
     post: operations['notes___recommendations'];
+  };
+  '/notes/recommendations/dwell': {
+    /**
+     * notes/recommendations/dwell
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    post: operations['notes___recommendations___dwell'];
+  };
+  '/notes/recommendations/not-interested': {
+    /**
+     * notes/recommendations/not-interested
+     * @description No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    post: operations['notes___recommendations___not-interested'];
   };
   '/notes/renotes': {
     /**
@@ -4660,6 +4723,34 @@ export type components = {
         }]>;
       };
       emailNotificationTypes: string[];
+      recommendationSettings: {
+        enabled: boolean;
+        recommendNsfw: boolean;
+        factors: {
+          relevancy: number;
+          authorAffinity: number;
+          quality: number;
+          popularity: number;
+          recency: number;
+          shortPostPenalty: number;
+          overTagPenalty: number;
+          replyPenalty: number;
+          topicPreference: number;
+          followed: number;
+          similarUsers: number;
+        };
+        engagement: {
+          reaction: number;
+          reply: number;
+          boost: number;
+          favorite: number;
+          post: number;
+        };
+        interestTopics: ('anime' | 'gaming' | 'art' | 'sports' | 'drawing' | 'humor' | 'tech' | 'home' | 'food' | 'photography' | 'science' | 'study' | 'travel' | 'music' | 'culture' | 'emotion' | 'career' | 'social-science' | 'literature' | 'news' | 'programming' | 'politics' | 'pets' | 'daily-life')[];
+        disinterestTopics: ('anime' | 'gaming' | 'art' | 'sports' | 'drawing' | 'humor' | 'tech' | 'home' | 'food' | 'photography' | 'science' | 'study' | 'travel' | 'music' | 'culture' | 'emotion' | 'career' | 'social-science' | 'literature' | 'news' | 'programming' | 'politics' | 'pets' | 'daily-life')[];
+        languages: ('en' | 'ja' | 'zh')[];
+        followedRatio: number;
+      };
       achievements: {
           name: string;
           unlockedAt: number;
@@ -9677,6 +9768,10 @@ export type operations = {
             llmTranslateModel: string | null;
             llmTranslatePrompt: string | null;
             llmQualityPrompt: string | null;
+            recommendationBlockedUsers: string[];
+            recommendationRankerModel: Record<string, never> | null;
+            recommendationRankerWeight: number;
+            recommendationEngagementValues: Record<string, never>;
             enableSpamFilter: boolean;
             enableLlmTranslation: boolean;
             defaultDarkTheme: string | null;
@@ -10416,6 +10511,62 @@ export type operations = {
     };
   };
   /**
+   * admin/recommendation/backfill-author-embeddings
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+   */
+  'admin___recommendation___backfill-author-embeddings': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 70 */
+          sinceDays?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            started: boolean;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * admin/recommendation/backfill-history
    * @description No description provided.
    *
@@ -10531,6 +10682,65 @@ export type operations = {
     };
   };
   /**
+   * admin/recommendation/backfill-topics
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+   */
+  'admin___recommendation___backfill-topics': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 60 */
+          days?: number;
+          /** @default 2000000 */
+          limit?: number;
+          langs?: string[] | null;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            started: boolean;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * admin/recommendation/prefill
    * @description No description provided.
    *
@@ -10592,12 +10802,122 @@ export type operations = {
     };
   };
   /**
+   * admin/recommendation/purge-blocked
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+   */
+  'admin___recommendation___purge-blocked': {
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            users: number;
+            notesScanned: number;
+            hqRemoved: number;
+            featRemoved: number;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * admin/recommendation/rebuild-user-vectors
    * @description No description provided.
    *
    * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
    */
   'admin___recommendation___rebuild-user-vectors': {
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            started: boolean;
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * admin/recommendation/reindex-quality
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:admin:queue*
+   */
+  'admin___recommendation___reindex-quality': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 14 */
+          days?: number;
+          /** @default 2000000 */
+          limit?: number;
+          langs?: string[] | null;
+        };
+      };
+    };
     responses: {
       /** @description OK (with results) */
       200: {
@@ -13008,6 +13328,10 @@ export type operations = {
           llmTranslateModel?: string | null;
           llmTranslatePrompt?: string | null;
           llmQualityPrompt?: string | null;
+          recommendationBlockedUsers?: string[] | null;
+          recommendationRankerModel?: Record<string, never> | null;
+          recommendationRankerWeight?: number | null;
+          recommendationEngagementValues?: Record<string, never> | null;
           enableEmail?: boolean;
           email?: string | null;
           smtpSecure?: boolean;
@@ -25008,6 +25332,55 @@ export type operations = {
     };
   };
   /**
+   * i/recommendation-interests
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *read:account*
+   */
+  'i___recommendation-interests': {
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': {
+            interested: string[];
+            disinterested: string[];
+          };
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
    * i/regenerate-token
    * @description No description provided.
    *
@@ -26003,6 +26376,34 @@ export type operations = {
               /** Format: misskey:id */
               userListId: string;
             }]>;
+          };
+          recommendationSettings?: {
+            enabled?: boolean;
+            recommendNsfw?: boolean;
+            factors?: {
+              relevancy?: number;
+              authorAffinity?: number;
+              quality?: number;
+              popularity?: number;
+              recency?: number;
+              shortPostPenalty?: number;
+              overTagPenalty?: number;
+              replyPenalty?: number;
+              topicPreference?: number;
+              followed?: number;
+              similarUsers?: number;
+            };
+            engagement?: {
+              reaction?: number;
+              reply?: number;
+              boost?: number;
+              favorite?: number;
+              post?: number;
+            };
+            interestTopics?: ('anime' | 'gaming' | 'art' | 'sports' | 'drawing' | 'humor' | 'tech' | 'home' | 'food' | 'photography' | 'science' | 'study' | 'travel' | 'music' | 'culture' | 'emotion' | 'career' | 'social-science' | 'literature' | 'news' | 'programming' | 'politics' | 'pets' | 'daily-life')[];
+            disinterestTopics?: ('anime' | 'gaming' | 'art' | 'sports' | 'drawing' | 'humor' | 'tech' | 'home' | 'food' | 'photography' | 'science' | 'study' | 'travel' | 'music' | 'culture' | 'emotion' | 'career' | 'social-science' | 'literature' | 'news' | 'programming' | 'politics' | 'pets' | 'daily-life')[];
+            languages?: ('en' | 'ja' | 'zh')[];
+            followedRatio?: number;
           };
           emailNotificationTypes?: string[];
           alsoKnownAs?: string[];
@@ -28703,6 +29104,8 @@ export type operations = {
           lang?: string | null;
           /** @default false */
           withSensitive?: boolean;
+          /** @default true */
+          withRenotes?: boolean;
         };
       };
     };
@@ -28739,6 +29142,123 @@ export type operations = {
       };
       /** @description Too many requests */
       429: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * notes/recommendations/dwell
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:account*
+   */
+  notes___recommendations___dwell: {
+    requestBody: {
+      content: {
+        'application/json': {
+          items: {
+              /** Format: misskey:id */
+              noteId: string;
+              dwellMs: number;
+            }[];
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': Record<string, never>;
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Too many requests */
+      429: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  /**
+   * notes/recommendations/not-interested
+   * @description No description provided.
+   *
+   * **Credential required**: *Yes* / **Permission**: *write:account*
+   */
+  'notes___recommendations___not-interested': {
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: misskey:id */
+          noteId: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK (with results) */
+      200: {
+        content: {
+          'application/json': Record<string, never>;
+        };
+      };
+      /** @description Client error */
+      400: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Authentication error */
+      401: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description Forbidden error */
+      403: {
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description I'm Ai */
+      418: {
         content: {
           'application/json': components['schemas']['Error'];
         };

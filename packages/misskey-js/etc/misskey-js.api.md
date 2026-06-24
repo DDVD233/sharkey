@@ -318,6 +318,12 @@ type AdminQueueShowJobRequest = operations['admin___queue___show-job']['requestB
 type AdminQueueStatsResponse = operations['admin___queue___stats']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AdminRecommendationBackfillAuthorEmbeddingsRequest = operations['admin___recommendation___backfill-author-embeddings']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationBackfillAuthorEmbeddingsResponse = operations['admin___recommendation___backfill-author-embeddings']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminRecommendationBackfillHistoryRequest = operations['admin___recommendation___backfill-history']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -330,13 +336,28 @@ type AdminRecommendationBackfillQualityRequest = operations['admin___recommendat
 type AdminRecommendationBackfillQualityResponse = operations['admin___recommendation___backfill-quality']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AdminRecommendationBackfillTopicsRequest = operations['admin___recommendation___backfill-topics']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationBackfillTopicsResponse = operations['admin___recommendation___backfill-topics']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminRecommendationPrefillRequest = operations['admin___recommendation___prefill']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type AdminRecommendationPrefillResponse = operations['admin___recommendation___prefill']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AdminRecommendationPurgeBlockedResponse = operations['admin___recommendation___purge-blocked']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminRecommendationRebuildUserVectorsResponse = operations['admin___recommendation___rebuild-user-vectors']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationReindexQualityRequest = operations['admin___recommendation___reindex-quality']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminRecommendationReindexQualityResponse = operations['admin___recommendation___reindex-quality']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type AdminRecommendationStatsRequest = operations['admin___recommendation___stats']['requestBody']['content']['application/json'];
@@ -1633,13 +1654,20 @@ declare namespace entities {
         AdminQueueRetryJobRequest,
         AdminQueueShowJobRequest,
         AdminQueueStatsResponse,
+        AdminRecommendationBackfillAuthorEmbeddingsRequest,
+        AdminRecommendationBackfillAuthorEmbeddingsResponse,
         AdminRecommendationBackfillHistoryRequest,
         AdminRecommendationBackfillHistoryResponse,
         AdminRecommendationBackfillQualityRequest,
         AdminRecommendationBackfillQualityResponse,
+        AdminRecommendationBackfillTopicsRequest,
+        AdminRecommendationBackfillTopicsResponse,
         AdminRecommendationPrefillRequest,
         AdminRecommendationPrefillResponse,
+        AdminRecommendationPurgeBlockedResponse,
         AdminRecommendationRebuildUserVectorsResponse,
+        AdminRecommendationReindexQualityRequest,
+        AdminRecommendationReindexQualityResponse,
         AdminRecommendationStatsRequest,
         AdminRecommendationStatsResponse,
         AdminRejectQuotesRequest,
@@ -1991,6 +2019,7 @@ declare namespace entities {
         IPinRequest,
         IPinResponse,
         IReadAnnouncementRequest,
+        IRecommendationInterestsResponse,
         IRegenerateTokenRequest,
         IRegistryGetRequest,
         IRegistryGetResponse,
@@ -2078,6 +2107,10 @@ declare namespace entities {
         NotesReactionsDeleteRequest,
         NotesRecommendationsRequest,
         NotesRecommendationsResponse,
+        NotesRecommendationsDwellRequest,
+        NotesRecommendationsDwellResponse,
+        NotesRecommendationsNotInterestedRequest,
+        NotesRecommendationsNotInterestedResponse,
         NotesRenotesRequest,
         NotesRenotesResponse,
         NotesRepliesRequest,
@@ -2713,6 +2746,9 @@ type IPinResponse = operations['i___pin']['responses']['200']['content']['applic
 type IReadAnnouncementRequest = operations['i___read-announcement']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type IRecommendationInterestsResponse = operations['i___recommendation-interests']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type IRegenerateTokenRequest = operations['i___regenerate-token']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3267,6 +3303,18 @@ type NotesReactionsRequest = operations['notes___reactions']['requestBody']['con
 
 // @public (undocumented)
 type NotesReactionsResponse = operations['notes___reactions']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NotesRecommendationsDwellRequest = operations['notes___recommendations___dwell']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NotesRecommendationsDwellResponse = operations['notes___recommendations___dwell']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NotesRecommendationsNotInterestedRequest = operations['notes___recommendations___not-interested']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NotesRecommendationsNotInterestedResponse = operations['notes___recommendations___not-interested']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type NotesRecommendationsRequest = operations['notes___recommendations']['requestBody']['content']['application/json'];
