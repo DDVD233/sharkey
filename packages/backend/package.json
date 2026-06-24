@@ -33,6 +33,7 @@
 		"jest-clear": "cross-env NODE_ENV=test node --experimental-vm-modules --experimental-import-meta-resolve node_modules/jest/bin/jest.js --clearCache",
 		"test": "pnpm jest",
 		"test:e2e": "pnpm build && pnpm build:test && pnpm jest:e2e",
+		"test:recommendation": "pnpm build && node test/recommendation/feed.integration.mjs",
 		"test:fed": "pnpm jest:fed",
 		"test-and-coverage": "pnpm jest-and-coverage",
 		"test-and-coverage:e2e": "pnpm build && pnpm build:test && pnpm jest-and-coverage:e2e",
