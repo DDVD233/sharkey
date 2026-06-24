@@ -87,6 +87,13 @@ export class ApiInstanceMastodon {
 				rules: instance.rules ?? [],
 			};
 
+			// Public instance-discovery data — cache the anonymous variant hard at the edge (8h).
+			// The authenticated variant embeds per-user policy (max_pinned_statuses, from
+			// getUserPolicies(me.id)), so it must stay private and never be shared.
+			reply.header('Cache-Control', me == null
+				? 'public, max-age=28800'
+				: 'private, max-age=0, must-revalidate');
+
 			return reply.send(response);
 		});
 	}
