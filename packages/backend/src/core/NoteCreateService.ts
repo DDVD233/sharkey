@@ -460,7 +460,15 @@ export class NoteCreateService implements OnApplicationShutdown {
 			this.queueService.createScoreNoteJob(note.id).catch(() => { /* best-effort */ });
 		}
 		if (user.host == null) {
-			if (data.reply) this.recommendationService.onPositiveEngagement(user.id, data.reply, 'reply').catch(() => { /* best-effort */ });
+			if (data.reply) {
+				this.recommendationService.onPositiveEngagement(user.id, data.reply, 'reply').catch(() => { /* best-effort */ });
+				// "Reply engaged by author": this user is replying to a note that is itself a reply on one of
+				// THEIR OWN notes (written by someone else) — i.e. the author is engaging a reply on their
+				// post. Reward the recommendation of that original note to the replier (Twitter's top signal).
+				if (data.reply.replyId != null && data.reply.replyUserId === user.id && data.reply.userId !== user.id) {
+					this.recommendationService.onReplyEngagedByAuthor(data.reply.userId, data.reply.replyId).catch(() => { /* best-effort */ });
+				}
+			}
 			if (data.renote) this.recommendationService.onPositiveEngagement(user.id, data.renote, 'renote').catch(() => { /* best-effort */ });
 			// The user's own original posts/quotes express their interests too (replies are already
 			// captured above as engagement with the parent note).

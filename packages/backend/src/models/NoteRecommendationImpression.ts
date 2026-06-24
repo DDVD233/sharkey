@@ -44,7 +44,7 @@ export class MiNoteRecommendationImpression {
 
 	@Column('varchar', {
 		length: 32, nullable: true,
-		comment: 'Which candidate source surfaced this note: ann | perUser | global | following | fallback.',
+		comment: 'Which candidate source surfaced this note: ann | following | cf | social | perUser | global | fallback.',
 	})
 	public source: string | null;
 
@@ -58,6 +58,12 @@ export class MiNoteRecommendationImpression {
 
 	@Column('real', { nullable: true, comment: 'ANN cosine similarity to the user interest vector, clamped to [0,1].' })
 	public annScore: number | null;
+
+	@Column('real', { nullable: true, comment: 'User↔author-centroid cosine ∈ [0,1] (author-similarity prior); = annScore when no centroid.' })
+	public authorScore: number | null;
+
+	@Column('real', { nullable: true, comment: 'Collaborative-filtering retrieval score (taste-neighbour weighted); 0 if not CF-sourced.' })
+	public cfScore: number | null;
 
 	@Column('real', { nullable: true, comment: 'Content-quality ∈ [0,1] (LLM interestingness, else structural).' })
 	public qualityScore: number | null;
@@ -79,4 +85,30 @@ export class MiNoteRecommendationImpression {
 
 	@Column('boolean', { nullable: true, comment: 'Whether the note is multimodal (has an image).' })
 	public isMultimodal: boolean | null;
+
+	// --- extended feature snapshot (the full heavy-ranker feature vector + outcomes) ------------------
+
+	@Column('real', { nullable: true, comment: 'Soft-normalized engagement/popularity ∈ [0,1] at serve time.' })
+	public popularityScore: number | null;
+
+	@Column('real', { nullable: true, comment: 'Short-post penalty signal ∈ [0,1] (0 for image posts / full-length prose).' })
+	public shortnessSignal: number | null;
+
+	@Column('real', { nullable: true, comment: 'Over-tagging penalty signal ∈ [0,1].' })
+	public overTagSignal: number | null;
+
+	@Column('boolean', { nullable: true, comment: 'Whether the note was a standalone (non-self) reply.' })
+	public isReplySignal: boolean | null;
+
+	@Column('real', { nullable: true, comment: 'User interest in the note topic ∈ {-1,0,1}.' })
+	public topicInterest: number | null;
+
+	@Column('boolean', { nullable: true, comment: 'Whether a taste-neighbour engaged this note (CF candidate).' })
+	public cfHit: boolean | null;
+
+	@Column('real', { nullable: true, comment: 'Learned heavy-ranker value-weighted score at serve time (null in pure hand-tuned mode).' })
+	public learnedScore: number | null;
+
+	@Column('integer', { nullable: true, comment: 'Client-reported dwell time in ms (how long the note stayed on screen); "good click" training label.' })
+	public dwellMs: number | null;
 }

@@ -256,6 +256,12 @@ export class ReactionService {
 		// (home / explore / any timeline, any note visibility). Custom/emoji reactions count stronger.
 		if (user.host == null) {
 			this.recommendationService.onPositiveEngagement(user.id, note, 'reaction', { reaction }).catch(() => { /* best-effort */ });
+			// "Reply engaged by author": this reactor authored the note that `note` replies to, and `note`
+			// was written by someone else — i.e. the author is engaging a reply on their post. Reward the
+			// recommendation of that parent note to the replier (Twitter's highest-value positive signal).
+			if (note.replyId != null && note.replyUserId === user.id && note.userId !== user.id) {
+				this.recommendationService.onReplyEngagedByAuthor(note.userId, note.replyId).catch(() => { /* best-effort */ });
+			}
 		}
 
 		// カスタム絵文字リアクションだったら絵文字情報も送る
